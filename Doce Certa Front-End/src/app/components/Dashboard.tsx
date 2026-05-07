@@ -29,13 +29,13 @@ export default function Dashboard({
   onLogout 
 }: DashboardProps) {
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Administrador', 'Médico', 'Enfermeiro', 'Recepção'] },
-    { id: 'pacientes', label: 'Pacientes', icon: Users, roles: ['Administrador', 'Médico', 'Enfermeiro', 'Recepção'] },
-    { id: 'medicos', label: 'Médicos', icon: Stethoscope, roles: ['Administrador', 'Recepção'] },
-    { id: 'enfermeiros', label: 'Enfermeiros', icon: Heart, roles: ['Administrador', 'Recepção'] },
-    { id: 'medicamentos', label: 'Medicamentos', icon: Pill, roles: ['Administrador', 'Médico', 'Enfermeiro'] },
-    { id: 'consulta', label: 'Consulta / Cálculo', icon: Calculator, roles: ['Administrador', 'Médico', 'Enfermeiro'] },
-    { id: 'historico', label: 'Histórico', icon: Clock, roles: ['Administrador', 'Médico', 'Enfermeiro'] },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'RECEPCAO', 'Administrador', 'Médico', 'Enfermeiro', 'Recepção'] },
+    { id: 'pacientes', label: 'Pacientes', icon: Users, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'RECEPCAO', 'Administrador', 'Médico', 'Enfermeiro', 'Recepção'] },
+    { id: 'medicos', label: 'Médicos', icon: Stethoscope, roles: ['ADMIN', 'RECEPCAO', 'Administrador', 'Recepção'] },
+    { id: 'enfermeiros', label: 'Enfermeiros', icon: Heart, roles: ['ADMIN', 'RECEPCAO', 'Administrador', 'Recepção'] },
+    { id: 'medicamentos', label: 'Medicamentos', icon: Pill, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
+    { id: 'consulta', label: 'Consulta / Cálculo', icon: Calculator, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
+    { id: 'historico', label: 'Histórico', icon: Clock, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
   ];
 
   const filteredMenuItems = menuItems.filter(item => item.roles.includes(role));

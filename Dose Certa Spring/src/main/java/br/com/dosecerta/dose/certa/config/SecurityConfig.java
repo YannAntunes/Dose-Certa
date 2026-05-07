@@ -26,24 +26,28 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // ❌ DESATIVA CSRF (API stateless)
+                // Desativa CSRF (API stateless)
                 .csrf(csrf -> csrf.disable())
 
-                // 🌍 CORS (já está ok, mas garantimos)
+                // CORS (usa o bean CorsConfig)
                 .cors(Customizer.withDefaults())
 
-                // 🔐 Regras de acesso
+                // Regras de acesso
                 .authorizeHttpRequests(auth -> auth
+                        // Libera preflight OPTIONS para qualquer endpoint
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // Libera o endpoint de login
+                        .requestMatchers(HttpMethod.POST, "/login").permitAll()
                         .requestMatchers("/login").permitAll()
                         .anyRequest().authenticated()
                 )
 
-                // 🚫 Sem sessão
+                // Sem sessao
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // 🔑 JWT antes do filtro padrão
+                // JWT antes do filtro padrao
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

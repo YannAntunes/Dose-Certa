@@ -1,36 +1,44 @@
-import { useState } from 'react';
-import { Shield, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Shield, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 
 interface LoginProps {
-  onLogin: (username: string, role: string) => void;
+  onLogin: (username: string, password: string) => Promise<void>;
 }
 
 export default function Login({ onLogin }: LoginProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
 
-  // Usuários de exemplo
-  const users = {
-    'admin': { password: 'admin123', role: 'Administrador' },
-    'medico': { password: 'medico123', role: 'Médico' },
-    'enfermeiro': { password: 'enfermeiro123', role: 'Enfermeiro' },
-    'recepcao': { password: 'recepcao123', role: 'Recepção' }
-  };
+  useEffect(() => {
+    const checkServer = async () => {
+      try {
+        await fetch('http://localhost:8080/login', { method: 'OPTIONS' });
+        setServerStatus('online');
+      } catch {
+        setServerStatus('offline');
+      }
+    };
+    checkServer();
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    const user = users[username as keyof typeof users];
-    
-    if (user && user.password === password) {
-      onLogin(username, user.role);
-    } else {
-      setError('Usuário ou senha inválidos');
+    try {
+      await onLogin(username, password);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao fazer login';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -53,11 +61,14 @@ export default function Login({ onLogin }: LoginProps) {
             <Input
               id="username"
               type="text"
+              name="username"
+              autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Digite seu usuário"
               className="w-full"
               required
+              disabled={loading}
             />
           </div>
 
@@ -66,11 +77,14 @@ export default function Login({ onLogin }: LoginProps) {
             <Input
               id="password"
               type="password"
+              name="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Digite sua senha"
               className="w-full"
               required
+              disabled={loading}
             />
           </div>
 
@@ -81,20 +95,42 @@ export default function Login({ onLogin }: LoginProps) {
             </div>
           )}
 
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-            Entrar
+          <Button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700"
+            disabled={loading || serverStatus === 'offline'}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Entrando...
+              </>
+            ) : (
+              'Entrar'
+            )}
           </Button>
         </form>
 
-        {/* Informações de teste */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-md">
-          <p className="text-sm text-gray-600 mb-2">Usuários de teste:</p>
-          <ul className="text-xs text-gray-500 space-y-1">
-            <li>• admin / admin123</li>
-            <li>• medico / medico123</li>
-            <li>• enfermeiro / enfermeiro123</li>
-            <li>• recepcao / recepcao123</li>
-          </ul>
+        {/* Status do servidor */}
+        <div className="mt-6 p-4 bg-gray-50 rounded-md flex items-center gap-2">
+          {serverStatus === 'checking' && (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+              <p className="text-sm text-gray-500">Verificando servidor...</p>
+            </>
+          )}
+          {serverStatus === 'online' && (
+            <>
+              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              <p className="text-sm text-green-600">Servidor conectado</p>
+            </>
+          )}
+          {serverStatus === 'offline' && (
+            <>
+              <div className="w-2 h-2 rounded-full bg-red-500"></div>
+              <p className="text-sm text-red-600">Servidor offline — verifique o backend</p>
+            </>
+          )}
         </div>
       </div>
     </div>

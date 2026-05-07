@@ -1,38 +1,64 @@
-# Dependencies
+# ===============================
+# DEPENDENCIAS
+# ===============================
 node_modules/
 package-lock.json
 yarn.lock
 
-# Logs
+# ===============================
+# LOGS
+# ===============================
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
+spring_log.txt
 
-# Environment variables
+# ===============================
+# VARIAVEIS DE AMBIENTE - NUNCA COMMITAR
+# ===============================
 .env
 .env.local
 .env.*.local
+*.env
 
-# IDE
+# ===============================
+# IDE / EDITORES
+# ===============================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 .DS_Store
+Thumbs.db
 
-# Build output
+# ===============================
+# BUILD OUTPUT
+# ===============================
 dist/
 build/
 *.jar
+*.class
 
-# Spring Boot
+# ===============================
+# SPRING / JAVA
+# ===============================
 target/
 .m2/
 .gradle/
 
-# OS
-Thumbs.db
-.DS_Store
+# Configuracoes locais de dev (com senhas reais)
+**/application-local.properties
+**/application-dev.properties
+
+# ===============================
+# ARQUIVOS DE DEBUG TEMPORARIOS
+# ===============================
+CheckUsers.java
+DbProbe.java
+DbProbe.class
+JwtGen.java
+JwtGen.class
+cp.txt

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import DashboardHome from './components/DashboardHome';
@@ -10,127 +10,170 @@ import Consulta from './components/Consulta';
 import Historico from './components/Historico';
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner';
+import { 
+  pacienteService, 
+  medicoService, 
+  enfermeiroService, 
+  medicamentoService,
+  historicoService,
+  authService,
+  Paciente,
+  Medico,
+  Enfermeiro,
+  Medicamento,
+  Historico as HistoricoType
+} from '../services/api';
 
 interface User {
   username: string;
   role: string;
+  id?: number;
 }
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState('dashboard');
 
-  // Estados para dados
-  const [pacientes, setPacientes] = useState([
-    { id: 1, nome: 'João Silva', cpf: '123.456.789-00', idade: 45, peso: 75 },
-    { id: 2, nome: 'Maria Santos', cpf: '987.654.321-00', idade: 32, peso: 62 },
-  ]);
+  // Estados para dados da API
+  const [pacientes, setPacientes] = useState<Paciente[]>([]);
+  const [medicos, setMedicos] = useState<Medico[]>([]);
+  const [enfermeiros, setEnfermeiros] = useState<Enfermeiro[]>([]);
+  const [medicamentos, setMedicamentos] = useState<Medicamento[]>([]);
+  const [historico, setHistorico] = useState<HistoricoType[]>([]);
 
-  const [medicos, setMedicos] = useState([
-    { id: 1, nome: 'Dr. Carlos Mendes', crm: '12345', estado: 'SP' },
-    { id: 2, nome: 'Dra. Ana Paula Costa', crm: '67890', estado: 'RJ' },
-  ]);
+  // Estados de carregamento
+  const [loadingPacientes, setLoadingPacientes] = useState(true);
+  const [loadingMedicos, setLoadingMedicos] = useState(true);
+  const [loadingEnfermeiros, setLoadingEnfermeiros] = useState(true);
+  const [loadingMedicamentos, setLoadingMedicamentos] = useState(true);
 
-  const [enfermeiros, setEnfermeiros] = useState([
-    { id: 1, nome: 'Enf. Pedro Oliveira', coren: '54321', estado: 'SP' },
-    { id: 2, nome: 'Enf. Juliana Lima', coren: '98765', estado: 'MG' },
-  ]);
+  // Limpa token invalido do localStorage ao iniciar
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Valida se o token ainda e aceito pelo backend
+      fetch('http://localhost:8080/pacientes', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(() => {
+        localStorage.removeItem('token');
+      }).then((res) => {
+        if (res && !res.ok) {
+          localStorage.removeItem('token');
+        }
+      });
+    }
+  }, []);
 
-  const [medicamentos, setMedicamentos] = useState([
-    {
-      id: 1,
-      nome: 'Dipirona',
-      marca: 'Genérico',
-      dosePorKg: '15.0',
-      doseMaxima: '2000.0',
-      intervalo: '6h',
-      notas: 'Analgésico/antitérmico',
-      volumeMl: '10',
-      tempoMin: '30',
-      fatorGotas: '15'
-    },
-    {
-      id: 2,
-      nome: 'Paracetamol',
-      marca: 'Tylenol',
-      dosePorKg: '10.0',
-      doseMaxima: '1500.0',
-      intervalo: '6h',
-      notas: 'Analgésico/antitérmico',
-      volumeMl: '10',
-      tempoMin: '30',
-      fatorGotas: '15'
-    },
-    {
-      id: 3,
-      nome: 'Amoxicilina',
-      marca: 'Amoxil',
-      dosePorKg: '50.0',
-      doseMaxima: '3000.0',
-      intervalo: '8h',
-      notas: 'Antibiótico',
-      volumeMl: '10',
-      tempoMin: '30',
-      fatorGotas: '15'
-    },
-  ]);
+  // Carregar dados quando o usuário faz login
+  useEffect(() => {
+    if (user) {
+      carregarDados();
+    }
+  }, [user]);
 
-  const [historico, setHistorico] = useState<any[]>([]);
 
-  const handleLogin = (username: string, role: string) => {
-    setUser({ username, role });
-    toast.success(`Bem-vindo, ${username}!`);
+  const carregarDados = async () => {
+    try {
+      const [pacientesData, medicosData, enfermeirosData, medicamentosData, historicoData] = 
+        await Promise.all([
+          pacienteService.listar(),
+          medicoService.listar(),
+          enfermeiroService.listar(),
+          medicamentoService.listar(),
+          historicoService.listar()
+        ]);
+
+      setPacientes(pacientesData || []);
+      setMedicos(medicosData || []);
+      setEnfermeiros(enfermeirosData || []);
+      setMedicamentos(medicamentosData || []);
+      setHistorico(historicoData || []);
+
+      setLoadingPacientes(false);
+      setLoadingMedicos(false);
+      setLoadingEnfermeiros(false);
+      setLoadingMedicamentos(false);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast.error('Erro ao carregar dados do servidor');
+      setLoadingPacientes(false);
+      setLoadingMedicos(false);
+      setLoadingEnfermeiros(false);
+      setLoadingMedicamentos(false);
+    }
+  };
+
+  const handleLogin = async (username: string, password: string) => {
+    try {
+      const response = await authService.login(username, password);
+      const userInfo: User = {
+        username: response.login,
+        role: response.perfil,
+        id: response.id
+      };
+      setUser(userInfo);
+      toast.success(`Bem-vindo, ${response.login}!`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao fazer login';
+      toast.error(errorMessage);
+    }
   };
 
   const handleLogout = () => {
+    authService.logout();
     setUser(null);
     setCurrentPage('dashboard');
     toast.info('Você saiu do sistema');
   };
 
-  const handleAddPaciente = (paciente: any) => {
-    const newPaciente = {
-      ...paciente,
-      id: pacientes.length + 1
-    };
-    setPacientes([...pacientes, newPaciente]);
-    toast.success('Paciente cadastrado com sucesso!');
+  const handleAddPaciente = async (paciente: Omit<Paciente, 'id'>) => {
+    try {
+      const newPaciente = await pacienteService.criar(paciente);
+      setPacientes([...pacientes, newPaciente]);
+      toast.success('Paciente cadastrado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao cadastrar paciente:', error);
+    }
   };
 
-  const handleAddMedico = (medico: any) => {
-    const newMedico = {
-      ...medico,
-      id: medicos.length + 1
-    };
-    setMedicos([...medicos, newMedico]);
-    toast.success('Médico cadastrado com sucesso!');
+  const handleAddMedico = async (medico: Omit<Medico, 'id'>) => {
+    try {
+      const newMedico = await medicoService.criar(medico);
+      setMedicos([...medicos, newMedico]);
+      toast.success('Médico cadastrado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao cadastrar médico:', error);
+    }
   };
 
-  const handleAddEnfermeiro = (enfermeiro: any) => {
-    const newEnfermeiro = {
-      ...enfermeiro,
-      id: enfermeiros.length + 1
-    };
-    setEnfermeiros([...enfermeiros, newEnfermeiro]);
-    toast.success('Enfermeiro cadastrado com sucesso!');
+  const handleAddEnfermeiro = async (enfermeiro: Omit<Enfermeiro, 'id'>) => {
+    try {
+      const newEnfermeiro = await enfermeiroService.criar(enfermeiro);
+      setEnfermeiros([...enfermeiros, newEnfermeiro]);
+      toast.success('Enfermeiro cadastrado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao cadastrar enfermeiro:', error);
+    }
   };
 
-  const handleAddMedicamento = (medicamento: any) => {
-    const newMedicamento = {
-      ...medicamento,
-      id: medicamentos.length + 1
-    };
-    setMedicamentos([...medicamentos, newMedicamento]);
-    toast.success('Medicamento cadastrado com sucesso!');
+  const handleAddMedicamento = async (medicamento: Omit<Medicamento, 'id'>) => {
+    try {
+      const newMedicamento = await medicamentoService.criar(medicamento);
+      setMedicamentos([...medicamentos, newMedicamento]);
+      toast.success('Medicamento cadastrado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao cadastrar medicamento:', error);
+    }
   };
 
-  const handleSaveConsulta = (consulta: any) => {
-    const newConsulta = {
-      ...consulta,
-      id: historico.length + 1
-    };
-    setHistorico([newConsulta, ...historico]);
-    toast.success('Consulta salva com sucesso!');
+  const handleSaveConsulta = async (consulta: any) => {
+    try {
+      // Aqui você pode chamar o serviço de consultas se existir
+      setHistorico([consulta, ...historico]);
+      toast.success('Consulta salva com sucesso!');
+    } catch (error) {
+      console.error('Erro ao salvar consulta:', error);
+    }
   };
 
   if (!user) {
