@@ -40,7 +40,7 @@ public class ConsultaDTO {
             this.tipoProfissional = "enfermeiro";
         } else {
             this.profissional     = "Não informado";
-            this.tipoProfissional = "medico";
+            this.tipoProfissional = "desconhecido";
         }
     }
 

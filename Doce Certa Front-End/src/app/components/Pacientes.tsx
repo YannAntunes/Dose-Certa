@@ -6,6 +6,7 @@ import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { toast } from 'sonner';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface Paciente {
   id: number;
@@ -41,6 +42,8 @@ export default function Pacientes({ pacientes, onAddPaciente, onUpdatePaciente, 
   const [idade, setIdade] = useState('');
   const [peso, setPeso] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+
+  const { t } = useLanguage();
 
   // Estado de edição inline
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -101,25 +104,25 @@ export default function Pacientes({ pacientes, onAddPaciente, onUpdatePaciente, 
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       {/* Formulário de Cadastro */}
-      <Card>
+      <Card className="border-slate-200/60 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserPlus className="w-5 h-5" />
-            Cadastrar Paciente
+          <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
+            <UserPlus className="w-5 h-5 text-blue-500" />
+            {t('pacientes.add')}
           </CardTitle>
-          <CardDescription>Adicione um novo paciente ao sistema</CardDescription>
+          <CardDescription className="dark:text-slate-400">{t('pacientes.add_desc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="nome">Nome Completo</Label>
-                <Input id="nome" value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome completo do paciente" required />
+                <Label htmlFor="nome" className="dark:text-slate-300">{t('pacientes.form.name')}</Label>
+                <Input id="nome" value={nome} onChange={e => setNome(e.target.value)} placeholder={t('pacientes.form.name_ph')} required className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="tipoDocumento">Tipo de Documento</Label>
+                <Label htmlFor="tipoDocumento" className="dark:text-slate-300">{t('pacientes.form.doc_type')}</Label>
                 <select
                   id="tipoDocumento"
                   value={tipoDocumento}
@@ -127,95 +130,96 @@ export default function Pacientes({ pacientes, onAddPaciente, onUpdatePaciente, 
                     setTipoDocumento(e.target.value);
                     setCpf('');
                   }}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="flex h-10 w-full rounded-md border border-input border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:text-slate-100"
                 >
-                  <option value="CPF">CPF</option>
-                  <option value="PASSAPORTE">Passaporte</option>
+                  <option value="CPF">{t('pacientes.form.cpf')}</option>
+                  <option value="PASSAPORTE">{t('pacientes.form.passport')}</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cpf">{tipoDocumento === 'CPF' ? 'CPF' : 'Número do Documento'}</Label>
+                <Label htmlFor="cpf" className="dark:text-slate-300">{tipoDocumento === 'CPF' ? t('pacientes.form.cpf') : t('pacientes.form.doc_type')}</Label>
                 <Input
                   id="cpf"
                   value={cpf}
                   onChange={e => setCpf(tipoDocumento === 'CPF' ? formatCpf(e.target.value) : e.target.value)}
                   placeholder={tipoDocumento === 'CPF' ? "000.000.000-00" : "Ex: AB123456"}
                   maxLength={tipoDocumento === 'CPF' ? 14 : 20}
+                  className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="paisOrigem">País de Origem</Label>
-                <Input id="paisOrigem" value={paisOrigem} onChange={e => setPaisOrigem(e.target.value)} placeholder="Ex: Brasil" />
+                <Label htmlFor="paisOrigem" className="dark:text-slate-300">{t('pacientes.form.country')}</Label>
+                <Input id="paisOrigem" value={paisOrigem} onChange={e => setPaisOrigem(e.target.value)} placeholder="Ex: Brasil" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="idade">Idade (anos)</Label>
-                <Input id="idade" type="number" value={idade} onChange={e => setIdade(e.target.value)} placeholder="Idade" min="0" required />
+                <Label htmlFor="idade" className="dark:text-slate-300">{t('pacientes.form.age')}</Label>
+                <Input id="idade" type="number" value={idade} onChange={e => setIdade(e.target.value)} placeholder={t('pacientes.form.age_ph')} min="0" required className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="peso">Peso (kg)</Label>
-                <Input id="peso" type="number" step="0.1" value={peso} onChange={e => setPeso(e.target.value)} placeholder="Peso em kg" min="0" required />
+                <Label htmlFor="peso" className="dark:text-slate-300">{t('pacientes.form.weight')}</Label>
+                <Input id="peso" type="number" step="0.1" value={peso} onChange={e => setPeso(e.target.value)} placeholder={t('pacientes.form.weight_ph')} min="0" required className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700" />
               </div>
             </div>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
               <UserPlus className="w-4 h-4 mr-2" />
-              Cadastrar Paciente
+              {t('pacientes.add')}
             </Button>
           </form>
         </CardContent>
       </Card>
 
       {/* Lista de Pacientes */}
-      <Card>
+      <Card className="border-slate-200/60 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl shadow-sm">
         <CardHeader>
-          <CardTitle>Pacientes Cadastrados</CardTitle>
-          <CardDescription>Lista completa de pacientes no sistema</CardDescription>
+          <CardTitle className="text-slate-800 dark:text-slate-100">{t('pacientes.list.title')}</CardTitle>
+          <CardDescription className="dark:text-slate-400">{t('pacientes.list.desc')}</CardDescription>
           <div className="mt-4 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <Input
-              placeholder="Buscar por nome ou CPF..."
+              placeholder={t('pacientes.search')}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
             />
           </div>
         </CardHeader>
         <CardContent>
-          <div className="border rounded-lg overflow-hidden">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="bg-gray-50">
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Documento</TableHead>
-                  <TableHead>País</TableHead>
-                  <TableHead>Idade</TableHead>
-                  <TableHead>Peso</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                <TableRow className="bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800">
+                  <TableHead className="text-slate-600 dark:text-slate-300">{t('common.name')}</TableHead>
+                  <TableHead className="text-slate-600 dark:text-slate-300">{t('pacientes.form.doc_type')}</TableHead>
+                  <TableHead className="text-slate-600 dark:text-slate-300">{t('pacientes.form.country')}</TableHead>
+                  <TableHead className="text-slate-600 dark:text-slate-300">{t('pacientes.form.age_ph')}</TableHead>
+                  <TableHead className="text-slate-600 dark:text-slate-300">{t('pacientes.form.weight_ph')}</TableHead>
+                  <TableHead className="text-right text-slate-600 dark:text-slate-300">{t('common.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPacientes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                      Nenhum paciente cadastrado
+                    <TableCell colSpan={6} className="text-center text-slate-500 dark:text-slate-400 py-8">
+                      {t('historico.empty')}
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredPacientes.map(paciente => (
                     editingId === paciente.id ? (
                       /* ── Linha de edição inline ── */
-                      <TableRow key={paciente.id} className="bg-blue-50">
+                      <TableRow key={paciente.id} className="bg-blue-50/50 dark:bg-blue-900/10 border-slate-200 dark:border-slate-800">
                         <TableCell>
-                          <Input value={editNome} onChange={e => setEditNome(e.target.value)} className="h-8" />
+                          <Input value={editNome} onChange={e => setEditNome(e.target.value)} className="h-8 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700" />
                         </TableCell>
                         <TableCell className="flex flex-col gap-1 min-w-[150px]">
                           <select
                             value={editTipoDocumento}
                             onChange={e => {
-                              setEditTipoDocumento(e.target.value);
-                              setEditCpf('');
+                               setEditTipoDocumento(e.target.value);
+                               setEditCpf('');
                             }}
-                            className="h-8 rounded-md border border-input text-xs px-2 w-full"
+                            className="h-8 rounded-md border border-input border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs px-2 w-full dark:text-slate-100"
                           >
                             <option value="CPF">CPF</option>
                             <option value="PASSAPORTE">Passaporte</option>
@@ -224,17 +228,17 @@ export default function Pacientes({ pacientes, onAddPaciente, onUpdatePaciente, 
                             value={editCpf}
                             onChange={e => setEditCpf(editTipoDocumento === 'CPF' ? formatCpf(e.target.value) : e.target.value)}
                             maxLength={editTipoDocumento === 'CPF' ? 14 : 20}
-                            className="h-8"
+                            className="h-8 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
                           />
                         </TableCell>
                         <TableCell>
-                           <Input value={editPaisOrigem} onChange={e => setEditPaisOrigem(e.target.value)} className="h-8 w-24" />
+                           <Input value={editPaisOrigem} onChange={e => setEditPaisOrigem(e.target.value)} className="h-8 w-24 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700" />
                         </TableCell>
                         <TableCell>
-                          <Input type="number" value={editIdade} onChange={e => setEditIdade(e.target.value)} className="h-8 w-16" />
+                          <Input type="number" value={editIdade} onChange={e => setEditIdade(e.target.value)} className="h-8 w-16 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700" />
                         </TableCell>
                         <TableCell>
-                          <Input type="number" step="0.1" value={editPeso} onChange={e => setEditPeso(e.target.value)} className="h-8 w-20" />
+                          <Input type="number" step="0.1" value={editPeso} onChange={e => setEditPeso(e.target.value)} className="h-8 w-20 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700" />
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
@@ -249,16 +253,16 @@ export default function Pacientes({ pacientes, onAddPaciente, onUpdatePaciente, 
                       </TableRow>
                     ) : deletingId === paciente.id ? (
                       /* ── Linha de confirmação de exclusão ── */
-                      <TableRow key={paciente.id} className="bg-red-50">
-                        <TableCell colSpan={5} className="text-sm text-red-700 font-medium">
-                          Excluir <strong>{paciente.nome}</strong>? Esta ação não pode ser desfeita.
+                      <TableRow key={paciente.id} className="bg-red-50/50 dark:bg-red-900/10 border-slate-200 dark:border-slate-800">
+                        <TableCell colSpan={5} className="text-sm text-red-700 dark:text-red-400 font-medium">
+                          {t('common.delete')} <strong>{paciente.nome}</strong>?
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
-                            <Button size="sm" onClick={() => confirmDelete(paciente.id)} className="bg-red-600 hover:bg-red-700 h-8 px-2 text-xs">
-                              Confirmar
+                            <Button size="sm" onClick={() => confirmDelete(paciente.id)} className="bg-red-600 hover:bg-red-700 text-white h-8 px-2 text-xs">
+                              {t('common.delete')}
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => setDeletingId(null)} className="h-8 px-2">
+                            <Button size="sm" variant="outline" onClick={() => setDeletingId(null)} className="h-8 px-2 border-slate-200 dark:border-slate-700 dark:text-slate-300">
                               <X className="w-4 h-4" />
                             </Button>
                           </div>
@@ -266,17 +270,17 @@ export default function Pacientes({ pacientes, onAddPaciente, onUpdatePaciente, 
                       </TableRow>
                     ) : (
                       /* ── Linha normal ── */
-                      <TableRow key={paciente.id} className="hover:bg-gray-50">
-                        <TableCell className="font-medium">{paciente.nome}</TableCell>
-                        <TableCell className="font-mono text-sm">
+                      <TableRow key={paciente.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 border-slate-200 dark:border-slate-800">
+                        <TableCell className="font-medium text-slate-800 dark:text-slate-200">{paciente.nome}</TableCell>
+                        <TableCell className="font-mono text-sm text-slate-700 dark:text-slate-300">
                           <div className="flex flex-col">
                             <span>{paciente.cpf}</span>
-                            <span className="text-xs text-gray-500">{paciente.tipoDocumento === 'PASSAPORTE' ? 'Passaporte' : 'CPF'}</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">{paciente.tipoDocumento === 'PASSAPORTE' ? t('pacientes.form.passport') : t('pacientes.form.cpf')}</span>
                           </div>
                         </TableCell>
-                        <TableCell>{paciente.paisOrigem || 'Brasil'}</TableCell>
-                        <TableCell>{paciente.idade} anos</TableCell>
-                        <TableCell>{paciente.peso} kg</TableCell>
+                        <TableCell className="text-slate-700 dark:text-slate-300">{paciente.paisOrigem || 'Brasil'}</TableCell>
+                        <TableCell className="text-slate-700 dark:text-slate-300">{paciente.idade} anos</TableCell>
+                        <TableCell className="text-slate-700 dark:text-slate-300">{paciente.peso} kg</TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
                             <Button

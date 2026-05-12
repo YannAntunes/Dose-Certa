@@ -8,9 +8,14 @@ import {
   Clock, 
   LogOut,
   LayoutDashboard,
-  UserCog
+  UserCog,
+  Sun,
+  Moon,
+  Globe
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { useTheme } from 'next-themes';
 
 interface DashboardProps {
   children: ReactNode;
@@ -29,32 +34,35 @@ export default function Dashboard({
   role,
   onLogout 
 }: DashboardProps) {
+  const { t, language, setLanguage } = useLanguage();
+  const { theme, setTheme } = useTheme();
+
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'RECEPCAO', 'Administrador', 'Médico', 'Enfermeiro', 'Recepção'] },
-    { id: 'pacientes', label: 'Pacientes', icon: Users, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'RECEPCAO', 'Administrador', 'Médico', 'Enfermeiro', 'Recepção'] },
-    { id: 'medicos', label: 'Médicos', icon: Stethoscope, roles: ['ADMIN', 'RECEPCAO', 'Administrador', 'Recepção'] },
-    { id: 'enfermeiros', label: 'Enfermeiros', icon: Heart, roles: ['ADMIN', 'RECEPCAO', 'Administrador', 'Recepção'] },
-    { id: 'medicamentos', label: 'Medicamentos', icon: Pill, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
-    { id: 'consulta', label: 'Consulta / Cálculo', icon: Calculator, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
-    { id: 'historico', label: 'Histórico', icon: Clock, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
-    { id: 'usuarios', label: 'Usuários', icon: UserCog, roles: ['ADMIN', 'Administrador'] },
+    { id: 'dashboard', label: t('menu.dashboard'), icon: LayoutDashboard, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'RECEPCAO', 'Administrador', 'Médico', 'Enfermeiro', 'Recepção'] },
+    { id: 'pacientes', label: t('menu.pacientes'), icon: Users, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'RECEPCAO', 'Administrador', 'Médico', 'Enfermeiro', 'Recepção'] },
+    { id: 'medicos', label: t('menu.medicos'), icon: Stethoscope, roles: ['ADMIN', 'RECEPCAO', 'Administrador', 'Recepção'] },
+    { id: 'enfermeiros', label: t('menu.enfermeiros'), icon: Heart, roles: ['ADMIN', 'RECEPCAO', 'Administrador', 'Recepção'] },
+    { id: 'medicamentos', label: t('menu.medicamentos'), icon: Pill, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
+    { id: 'consulta', label: t('menu.consulta'), icon: Calculator, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
+    { id: 'historico', label: t('menu.historico'), icon: Clock, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
+    { id: 'usuarios', label: t('menu.usuarios'), icon: UserCog, roles: ['ADMIN', 'Administrador'] },
   ];
 
   const filteredMenuItems = menuItems.filter(item => item.roles.includes(role));
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col">
+      <aside className="fixed left-0 top-0 h-full w-64 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-r border-slate-200 dark:border-slate-800 flex flex-col shadow-2xl shadow-blue-900/5 z-20">
         {/* Logo */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
               <Pill className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-blue-900">Dose Certa</h1>
-              <p className="text-xs text-gray-600">Sistema de Dosagem</p>
+              <h1 className="font-bold text-lg text-slate-900 dark:text-white tracking-tight">Dose Certa</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium tracking-wide uppercase">{language === 'pt' ? 'Sistema de Dosagem' : 'Dosage System'}</p>
             </div>
           </div>
         </div>
@@ -69,13 +77,13 @@ export default function Dashboard({
               <button
                 key={item.id}
                 onClick={() => onPageChange(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${
                   isActive 
-                    ? 'bg-blue-50 text-blue-700' 
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 shadow-sm' 
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className={`w-5 h-5 ${isActive ? 'scale-110 transition-transform' : ''}`} />
                 <span>{item.label}</span>
               </button>
             );
@@ -84,36 +92,63 @@ export default function Dashboard({
       </aside>
 
       {/* Main Content */}
-      <div className="ml-64">
+      <div className="ml-64 flex flex-col min-h-screen">
         {/* Top Bar */}
-        <header className="bg-white border-b border-gray-200 px-8 py-4">
+        <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-8 py-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-gray-900">
-                {menuItems.find(item => item.id === currentPage)?.label || 'Dashboard'}
+              <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                {menuItems.find(item => item.id === currentPage)?.label || t('menu.dashboard')}
               </h2>
-              <p className="text-sm text-gray-600">Bem-vindo ao sistema Dose Certa</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{t('topbar.welcome')}</p>
             </div>
             
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-gray-900">{username}</p>
-                <p className="text-sm text-gray-600">{role}</p>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2 border-r border-slate-200 dark:border-slate-700 pr-6">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setLanguage(language === 'pt' ? 'en' : 'pt')}
+                  title={language === 'pt' ? 'Switch to English' : 'Mudar para Português'}
+                  className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                >
+                  <Globe className="w-5 h-5" />
+                  <span className="sr-only">Toggle Language</span>
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  title={theme === 'dark' ? t('topbar.theme.light') : t('topbar.theme.dark')}
+                  className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                >
+                  {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  <span className="sr-only">Toggle Theme</span>
+                </Button>
               </div>
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={onLogout}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <LogOut className="w-5 h-5" />
-              </Button>
+
+              <div className="flex items-center gap-4">
+                <div className="text-right hidden sm:block">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{username}</p>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{role}</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={onLogout}
+                  title={t('menu.logout')}
+                  className="border-slate-200 dark:border-slate-700 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="p-8">
+        <main className="flex-1 p-8">
           {children}
         </main>
       </div>

@@ -105,7 +105,7 @@ function App() {
       setLoadingMedicamentos(false);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
-      toast.error('Erro ao carregar dados do servidor');
+      toast.error(t('common.status') === 'Status' ? 'Error loading data from server' : 'Erro ao carregar dados do servidor');
       setLoadingPacientes(false);
       setLoadingMedicos(false);
       setLoadingEnfermeiros(false);
@@ -131,7 +131,7 @@ function App() {
         id: response.id
       };
       setUser(userInfo);
-      toast.success(`Bem-vindo, ${response.login}!`);
+      toast.success((t('common.status') === 'Status' ? 'Welcome, ' : 'Bem-vindo, ') + response.login + '!');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao fazer login';
       toast.error(errorMessage);
@@ -142,16 +142,16 @@ function App() {
     authService.logout();
     setUser(null);
     setCurrentPage('dashboard');
-    toast.info('Você saiu do sistema');
+    toast.info(t('common.status') === 'Status' ? 'You have logged out' : 'Você saiu do sistema');
   };
 
   const handleAddPaciente = async (paciente: Omit<Paciente, 'id'>) => {
     try {
       const newPaciente = await pacienteService.criar(paciente);
       setPacientes(prev => [...prev, newPaciente]);
-      toast.success('Paciente cadastrado com sucesso!');
+      toast.success(t('common.status') === 'Status' ? 'Patient registered successfully!' : 'Paciente cadastrado com sucesso!');
     } catch (error: any) {
-      toast.error(error?.message || 'Erro ao cadastrar paciente');
+      toast.error(error?.message || (t('common.status') === 'Status' ? 'Error registering patient' : 'Erro ao cadastrar paciente'));
     }
   };
 
@@ -159,9 +159,9 @@ function App() {
     try {
       const updated = await pacienteService.atualizar(id, paciente);
       setPacientes(prev => prev.map(p => p.id === id ? updated : p));
-      toast.success('Paciente atualizado com sucesso!');
+      toast.success(t('common.status') === 'Status' ? 'Patient updated successfully!' : 'Paciente atualizado com sucesso!');
     } catch (error: any) {
-      toast.error(error?.message || 'Erro ao atualizar paciente');
+      toast.error(error?.message || (t('common.status') === 'Status' ? 'Error updating patient' : 'Erro ao atualizar paciente'));
     }
   };
 
@@ -169,9 +169,9 @@ function App() {
     try {
       await pacienteService.deletar(id);
       setPacientes(prev => prev.filter(p => p.id !== id));
-      toast.success('Paciente excluído com sucesso!');
+      toast.success(t('common.status') === 'Status' ? 'Patient deleted successfully!' : 'Paciente excluído com sucesso!');
     } catch (error: any) {
-      toast.error(error?.message || 'Erro ao excluir paciente');
+      toast.error(error?.message || (t('common.status') === 'Status' ? 'Error deleting patient' : 'Erro ao excluir paciente'));
     }
   };
 
@@ -179,9 +179,9 @@ function App() {
     try {
       const newMedico = await medicoService.criar(medico);
       setMedicos(prev => [...prev, newMedico]);
-      toast.success('Médico cadastrado com sucesso!');
+      toast.success(t('common.status') === 'Status' ? 'Doctor registered successfully!' : 'Médico cadastrado com sucesso!');
     } catch (error: any) {
-      toast.error(error?.message || 'Erro ao cadastrar médico');
+      toast.error(error?.message || (t('common.status') === 'Status' ? 'Error registering doctor' : 'Erro ao cadastrar médico'));
     }
   };
 
@@ -189,9 +189,9 @@ function App() {
     try {
       const updated = await medicoService.atualizar(id, medico);
       setMedicos(prev => prev.map(m => m.id === id ? updated : m));
-      toast.success('Médico atualizado com sucesso!');
+      toast.success(t('common.status') === 'Status' ? 'Doctor updated successfully!' : 'Médico atualizado com sucesso!');
     } catch (error: any) {
-      toast.error(error?.message || 'Erro ao atualizar médico');
+      toast.error(error?.message || (t('common.status') === 'Status' ? 'Error updating doctor' : 'Erro ao atualizar médico'));
     }
   };
 
@@ -199,9 +199,9 @@ function App() {
     try {
       await medicoService.deletar(id);
       setMedicos(prev => prev.filter(m => m.id !== id));
-      toast.success('Médico excluído com sucesso!');
+      toast.success(t('common.status') === 'Status' ? 'Doctor deleted successfully!' : 'Médico excluído com sucesso!');
     } catch (error: any) {
-      toast.error(error?.message || 'Erro ao excluir médico');
+      toast.error(error?.message || (t('common.status') === 'Status' ? 'Error deleting doctor' : 'Erro ao excluir médico'));
     }
   };
 
@@ -209,9 +209,9 @@ function App() {
     try {
       const newEnfermeiro = await enfermeiroService.criar(enfermeiro);
       setEnfermeiros(prev => [...prev, newEnfermeiro]);
-      toast.success('Enfermeiro cadastrado com sucesso!');
+      toast.success(t('common.status') === 'Status' ? 'Nurse registered successfully!' : 'Enfermeiro cadastrado com sucesso!');
     } catch (error: any) {
-      toast.error(error?.message || 'Erro ao cadastrar enfermeiro');
+      toast.error(error?.message || (t('common.status') === 'Status' ? 'Error registering nurse' : 'Erro ao cadastrar enfermeiro'));
     }
   };
 
@@ -219,9 +219,9 @@ function App() {
     try {
       const updated = await enfermeiroService.atualizar(id, enfermeiro);
       setEnfermeiros(prev => prev.map(e => e.id === id ? updated : e));
-      toast.success('Enfermeiro atualizado com sucesso!');
+      toast.success(t('common.status') === 'Status' ? 'Nurse updated successfully!' : 'Enfermeiro atualizado com sucesso!');
     } catch (error: any) {
-      toast.error(error?.message || 'Erro ao atualizar enfermeiro');
+      toast.error(error?.message || (t('common.status') === 'Status' ? 'Error updating nurse' : 'Erro ao atualizar enfermeiro'));
     }
   };
 
@@ -229,9 +229,9 @@ function App() {
     try {
       await enfermeiroService.deletar(id);
       setEnfermeiros(prev => prev.filter(e => e.id !== id));
-      toast.success('Enfermeiro excluído com sucesso!');
+      toast.success(t('common.status') === 'Status' ? 'Nurse deleted successfully!' : 'Enfermeiro excluído com sucesso!');
     } catch (error: any) {
-      toast.error(error?.message || 'Erro ao excluir enfermeiro');
+      toast.error(error?.message || (t('common.status') === 'Status' ? 'Error deleting nurse' : 'Erro ao excluir enfermeiro'));
     }
   };
 
@@ -239,9 +239,9 @@ function App() {
     try {
       const newMedicamento = await medicamentoService.criar(medicamento);
       setMedicamentos(prev => [...prev, newMedicamento]);
-      toast.success('Medicamento cadastrado com sucesso!');
+      toast.success(t('common.status') === 'Status' ? 'Medication registered successfully!' : 'Medicamento cadastrado com sucesso!');
     } catch (error: any) {
-      toast.error(error?.message || 'Erro ao cadastrar medicamento');
+      toast.error(error?.message || (t('common.status') === 'Status' ? 'Error registering medication' : 'Erro ao cadastrar medicamento'));
     }
   };
 
@@ -249,9 +249,9 @@ function App() {
     try {
       const updated = await medicamentoService.atualizar(id, medicamento);
       setMedicamentos(prev => prev.map(m => m.id === id ? updated : m));
-      toast.success('Medicamento atualizado com sucesso!');
+      toast.success(t('common.status') === 'Status' ? 'Medication updated successfully!' : 'Medicamento atualizado com sucesso!');
     } catch (error: any) {
-      toast.error(error?.message || 'Erro ao atualizar medicamento');
+      toast.error(error?.message || (t('common.status') === 'Status' ? 'Error updating medication' : 'Erro ao atualizar medicamento'));
     }
   };
 
@@ -259,9 +259,9 @@ function App() {
     try {
       await medicamentoService.deletar(id);
       setMedicamentos(prev => prev.filter(m => m.id !== id));
-      toast.success('Medicamento excluído com sucesso!');
+      toast.success(t('common.status') === 'Status' ? 'Medication deleted successfully!' : 'Medicamento excluído com sucesso!');
     } catch (error: any) {
-      toast.error(error?.message || 'Erro ao excluir medicamento');
+      toast.error(error?.message || (t('common.status') === 'Status' ? 'Error deleting medication' : 'Erro ao excluir medicamento'));
     }
   };
 
@@ -294,19 +294,19 @@ function App() {
   const handleAddUsuario = async (u: UsuarioRequest) => {
     const created = await usuarioService.criar(u);
     setUsuarios(prev => [...prev, created]);
-    toast.success(`Usuário "${created.login}" criado com sucesso!`);
+    toast.success((t('common.status') === 'Status' ? 'User "' : 'Usuário "') + created.login + (t('common.status') === 'Status' ? '" created successfully!' : '" criado com sucesso!'));
   };
 
   const handleUpdateUsuario = async (id: number, u: UsuarioRequest) => {
     const updated = await usuarioService.atualizar(id, u);
     setUsuarios(prev => prev.map(usr => usr.id === id ? updated : usr));
-    toast.success(`Usuário "${updated.login}" atualizado com sucesso!`);
+    toast.success((t('common.status') === 'Status' ? 'User "' : 'Usuário "') + updated.login + (t('common.status') === 'Status' ? '" updated successfully!' : '" atualizado com sucesso!'));
   };
 
   const handleDeleteUsuario = async (id: number) => {
     await usuarioService.deletar(id);
     setUsuarios(prev => prev.filter(usr => usr.id !== id));
-    toast.success('Usuário excluído com sucesso!');
+    toast.success(t('common.status') === 'Status' ? 'User deleted successfully!' : 'Usuário excluído com sucesso!');
   };
 
   if (!user) {

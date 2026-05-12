@@ -13,9 +13,11 @@ import java.util.stream.Collectors;
 public class UsuarioService {
 
     private final UsuarioRepository repository;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
-    public UsuarioService(UsuarioRepository repository) {
+    public UsuarioService(UsuarioRepository repository, org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this.repository = repository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public List<UsuarioResponseDTO> listarTodos() {
@@ -35,7 +37,7 @@ public class UsuarioService {
 
         Usuario usuario = new Usuario();
         usuario.setLogin(dto.getLogin());
-        usuario.setSenha(dto.getSenha()); // em produção: hash bcrypt
+        usuario.setSenha(passwordEncoder.encode(dto.getSenha()));
         usuario.setPerfil(dto.getPerfil());
 
         return new UsuarioResponseDTO(repository.save(usuario));
@@ -57,7 +59,7 @@ public class UsuarioService {
 
         // Só atualiza senha se foi fornecida
         if (dto.getSenha() != null && !dto.getSenha().isBlank()) {
-            usuario.setSenha(dto.getSenha());
+            usuario.setSenha(passwordEncoder.encode(dto.getSenha()));
         }
 
         return new UsuarioResponseDTO(repository.save(usuario));

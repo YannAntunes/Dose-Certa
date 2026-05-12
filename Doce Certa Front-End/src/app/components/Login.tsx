@@ -3,6 +3,7 @@ import { Shield, AlertCircle, Loader2, HelpCircle, X, Info } from 'lucide-react'
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface LoginProps {
   onLogin: (username: string, password: string) => Promise<void>;
@@ -15,6 +16,8 @@ export default function Login({ onLogin }: LoginProps) {
   const [loading, setLoading] = useState(false);
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  
+  const { t } = useLanguage();
 
   useEffect(() => {
     const checkServer = async () => {
@@ -44,22 +47,25 @@ export default function Login({ onLogin }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Orbs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500/20 rounded-full blur-[120px] pointer-events-none animate-pulse"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-500/20 rounded-full blur-[120px] pointer-events-none animate-pulse" style={{ animationDelay: '1s' }}></div>
 
+      <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-800 p-8 w-full max-w-md relative z-10 animate-in zoom-in-95 duration-500">
         {/* Logo e Título */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-            <Shield className="w-8 h-8 text-white" />
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-6 shadow-xl shadow-blue-500/20 transform hover:scale-110 transition-transform duration-300">
+            <Shield className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-blue-900 mb-2">Dose Certa</h1>
-          <p className="text-gray-600">Sistema de Dosagem de Medicamentos</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Dose Certa</h1>
+          <p className="text-slate-500 dark:text-slate-400 font-medium">{t('login.subtitle')}</p>
         </div>
 
         {/* Formulário */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="username">Usuário</Label>
+            <Label htmlFor="username" className="text-slate-700 dark:text-slate-300 font-medium ml-1">{t('login.form.user')}</Label>
             <Input
               id="username"
               type="text"
@@ -67,15 +73,15 @@ export default function Login({ onLogin }: LoginProps) {
               autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Digite seu usuário"
-              className="w-full"
+              placeholder={t('login.form.user_ph')}
+              className="w-full bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500 rounded-xl h-12 transition-all"
               required
               disabled={loading}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
+            <Label htmlFor="password" className="text-slate-700 dark:text-slate-300 font-medium ml-1">{t('login.form.pass')}</Label>
             <Input
               id="password"
               type="password"
@@ -83,8 +89,8 @@ export default function Login({ onLogin }: LoginProps) {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Digite sua senha"
-              className="w-full"
+              placeholder={t('login.form.pass_ph')}
+              className="w-full bg-white/50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500 rounded-xl h-12 transition-all"
               required
               disabled={loading}
             />
@@ -96,28 +102,27 @@ export default function Login({ onLogin }: LoginProps) {
               type="button"
               id="forgot-password-btn"
               onClick={() => setShowForgotPassword(true)}
-              className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 transition-colors"
+              className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 flex items-center gap-1.5 transition-colors"
             >
               <HelpCircle className="w-3.5 h-3.5" />
-              Esqueci a senha
+              {t('login.forgot')}
             </button>
           </div>
 
           {/* Aviso de senha esquecida */}
           {showForgotPassword && (
-            <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 p-4 rounded-lg">
-              <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+            <div className="flex items-start gap-3 bg-indigo-50/50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/50 p-4 rounded-xl animate-in slide-in-from-top-2 duration-300">
+              <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 mt-0.5 shrink-0" />
               <div className="flex-1">
-                <p className="text-sm font-semibold text-blue-800">Redefinição de senha</p>
-                <p className="text-sm text-blue-700 mt-1">
-                  Para trocar sua senha, entre em contato com o <strong>administrador do sistema</strong>.
-                  Apenas o administrador pode redefinir credenciais de acesso.
+                <p className="text-sm font-bold text-indigo-900 dark:text-indigo-300">{t('login.forgot.title')}</p>
+                <p className="text-xs text-indigo-700 dark:text-indigo-400 mt-1 leading-relaxed">
+                  {t('login.forgot.desc')}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowForgotPassword(false)}
-                className="text-blue-400 hover:text-blue-600 transition-colors"
+                className="text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
                 aria-label="Fechar aviso"
               >
                 <X className="w-4 h-4" />
@@ -126,46 +131,49 @@ export default function Login({ onLogin }: LoginProps) {
           )}
 
           {error && (
-            <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md">
+            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800/50 p-4 rounded-xl animate-shake duration-300">
               <AlertCircle className="w-5 h-5 shrink-0" />
-              <span>{error}</span>
+              <span className="text-sm font-medium">{error}</span>
             </div>
           )}
 
           <Button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 mt-2"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-6 rounded-xl shadow-lg shadow-blue-500/25 transition-all active:scale-95 disabled:opacity-70"
             disabled={loading || serverStatus === 'offline'}
           >
             {loading ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Entrando...
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                {t('login.btn.entering')}
               </>
             ) : (
-              'Entrar'
+              t('login.btn.enter')
             )}
           </Button>
         </form>
 
         {/* Status do servidor */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-md flex items-center gap-2">
+        <div className="mt-8 p-3 bg-slate-50/50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-center gap-3">
           {serverStatus === 'checking' && (
             <>
-              <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-              <p className="text-sm text-gray-500">Verificando servidor...</p>
+              <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+              <p className="text-xs text-slate-500 font-medium">{t('login.server.checking')}</p>
             </>
           )}
           {serverStatus === 'online' && (
             <>
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-              <p className="text-sm text-green-600">Servidor conectado</p>
+              <div className="relative">
+                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                <div className="absolute top-0 left-0 w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-75"></div>
+              </div>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold tracking-tight uppercase">{t('login.server.online')}</p>
             </>
           )}
           {serverStatus === 'offline' && (
             <>
-              <div className="w-2 h-2 rounded-full bg-red-500"></div>
-              <p className="text-sm text-red-600">Servidor offline — verifique o backend</p>
+              <div className="w-2 h-2 rounded-full bg-rose-500"></div>
+              <p className="text-xs text-rose-600 dark:text-rose-400 font-bold tracking-tight uppercase">{t('login.server.offline')}</p>
             </>
           )}
         </div>

@@ -16,8 +16,8 @@ public class CorsConfig {
 
         CorsConfiguration config = new CorsConfiguration();
 
-        // ⚠️ endereço do front (Vite)
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        // ⚠️ suporta portas dinâmicas do front local (5173, 5174, etc)
+        config.setAllowedOriginPatterns(List.of("http://localhost:*"));
 
         // métodos liberados
         config.setAllowedMethods(List.of(

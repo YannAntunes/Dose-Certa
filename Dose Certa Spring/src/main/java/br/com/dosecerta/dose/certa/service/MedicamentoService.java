@@ -62,6 +62,12 @@ public class MedicamentoService {
 
         if (medicamento.getVolumeDisponivel() <= 0)
             throw new IllegalArgumentException("Volume inválido");
+
+        if (medicamento.getFatorGotejamento() <= 0)
+            throw new IllegalArgumentException("Fator de gotejamento deve ser maior que zero");
+
+        if (medicamento.getTempoMinutos() <= 0)
+            throw new IllegalArgumentException("Tempo de infusão em minutos deve ser maior que zero");
     }
 
     public List<Medicamento> listarTodos() {

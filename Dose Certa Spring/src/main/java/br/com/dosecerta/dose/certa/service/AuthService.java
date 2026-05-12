@@ -11,10 +11,12 @@ public class AuthService {
 
     private final UsuarioRepository repository;
     private final JwtService jwtService;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
-    public AuthService(UsuarioRepository repository, JwtService jwtService) {
+    public AuthService(UsuarioRepository repository, JwtService jwtService, org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this.repository = repository;
         this.jwtService = jwtService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public LoginResponseDTO autenticar(String login, String senha) {
@@ -22,7 +24,7 @@ public class AuthService {
         Usuario usuario = repository.findByLogin(login)
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
 
-        if (!usuario.getSenha().equals(senha))
+        if (!passwordEncoder.matches(senha, usuario.getSenha()))
             throw new IllegalArgumentException("Senha inválida");
 
         String token = jwtService.gerarToken(

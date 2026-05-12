@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface ConsultaProps {
   pacientes: any[];
@@ -45,6 +46,8 @@ export default function Consulta({
   const [jaFoiSalva, setJaFoiSalva] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
+  const { t } = useLanguage();
+
   // Preencher campos quando `initialData` é fornecido pelo Histórico
   useEffect(() => {
     if (!initialData) return;
@@ -69,7 +72,7 @@ export default function Consulta({
       setPrescricao(initialData.observacoes);
     }
 
-    toast.info('Dados do atendimento carregados. Clique em "Gerar Cálculo" para recalcular.');
+    toast.info(t('common.status') === 'Status' ? 'Consultation data loaded. Click "Generate Calculation" to recalculate.' : 'Dados do atendimento carregados. Clique em "Gerar Cálculo" para recalcular.');
   }, [initialData]);
 
   const profissionais = tipoProfissional === 'medico' ? medicos : enfermeiros;
@@ -92,18 +95,40 @@ export default function Consulta({
         unidade = 'mg';
         formula = `Dose = Dosagem × Peso = ${dose} mg/kg × ${peso} kg = ${calculoFinal.toFixed(2)} mg`;
         break;
-      case 'volume':
-        calculoFinal = dose * peso;
+      case 'volume': {
+        const doseDisp = parseFloat(medicamentoSelecionado.doseDisponivel || '0');
+        const volDisp = parseFloat(medicamentoSelecionado.volumeDisponivel || '0');
+        if (doseDisp > 0 && volDisp > 0) {
+          const concentracao = doseDisp / volDisp;
+          calculoFinal = (dose * peso) / concentracao;
+        } else {
+          calculoFinal = 0;
+        }
         unidade = 'mL/h';
-        formula = `Volume = Dosagem × Peso = ${dose} mL/kg/h × ${peso} kg = ${calculoFinal.toFixed(2)} mL/h`;
+        formula = `Volume = (DoseDiaria) / Concentracao = (${dose * peso} mg) / (${doseDisp}/${volDisp} mg/mL) = ${calculoFinal.toFixed(2)} mL/h`;
         break;
+      }
       case 'gotas': {
-        const volume = parseFloat(medicamentoSelecionado.volumeMl || '10');
-        const fator = parseFloat(medicamentoSelecionado.fatorGotas || '15');
-        const tempo = parseFloat(medicamentoSelecionado.tempoMin || '60');
-        calculoFinal = (volume * fator) / tempo;
-        unidade = 'gotas/min';
-        formula = `Gotas/min = (Volume × Fator) / Tempo = (${volume} mL × ${fator} gotas/mL) / ${tempo} min = ${calculoFinal.toFixed(2)} gotas/min`;
+        const doseDisp = parseFloat(medicamentoSelecionado.doseDisponivel || '0');
+        const volDisp = parseFloat(medicamentoSelecionado.volumeDisponivel || '0');
+        const fator = parseFloat(medicamentoSelecionado.fatorGotejamento || '0');
+        const tempo = parseFloat(medicamentoSelecionado.tempoMinutos || '0');
+        
+        let volumeMl = 0;
+        if (doseDisp > 0 && volDisp > 0) {
+          const concentracao = doseDisp / volDisp;
+          volumeMl = (dose * peso) / concentracao;
+        }
+
+        if (tempo > 0) {
+          calculoFinal = (volumeMl * fator) / tempo;
+        } else {
+          calculoFinal = 0;
+        }
+        unidade = t('common.status') === 'Status' ? 'drops/min' : 'gotas/min';
+        formula = t('common.status') === 'Status' 
+          ? `Drops/min = (Volume × Factor) / Time = (${volumeMl.toFixed(2)} mL × ${fator} drops/mL) / ${tempo} min = ${calculoFinal.toFixed(2)} drops/min`
+          : `Gotas/min = (Volume × Fator) / Tempo = (${volumeMl.toFixed(2)} mL × ${fator} gotas/mL) / ${tempo} min = ${calculoFinal.toFixed(2)} gotas/min`;
         break;
       }
     }
@@ -128,32 +153,33 @@ export default function Consulta({
       ? medicamentoSelecionado.notas
       : '';
 
-    const prescricaoTexto = `PRESCRIÇÃO MÉDICA
+    const isEn = t('common.status') === 'Status';
+    const prescricaoTexto = `${isEn ? 'MEDICAL PRESCRIPTION' : 'PRESCRIÇÃO MÉDICA'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-PACIENTE
-Nome: ${pacienteSelecionado.nome}
-CPF: ${pacienteSelecionado.cpf}
-Peso: ${pacienteSelecionado.peso} kg
-Idade: ${pacienteSelecionado.idade} anos
+${isEn ? 'PATIENT' : 'PACIENTE'}
+${isEn ? 'Name' : 'Nome'}: ${pacienteSelecionado.nome}
+${isEn ? 'Document' : 'CPF'}: ${pacienteSelecionado.cpf}
+${isEn ? 'Weight' : 'Peso'}: ${pacienteSelecionado.peso} kg
+${isEn ? 'Age' : 'Idade'}: ${pacienteSelecionado.idade} ${isEn ? 'years' : 'anos'}
 
-MEDICAMENTO
-Nome: ${nomeMed}${marcaMed ? ` (${marcaMed})` : ''}
-Dose Calculada: ${calculoFinal.toFixed(2)} ${unidade}
-Intervalo: ${medicamentoSelecionado.intervalo || '-'}
+${isEn ? 'MEDICATION' : 'MEDICAMENTO'}
+${isEn ? 'Name' : 'Nome'}: ${nomeMed}${marcaMed ? ` (${marcaMed})` : ''}
+${isEn ? 'Calculated Dose' : 'Dose Calculada'}: ${calculoFinal.toFixed(2)} ${unidade}
+${isEn ? 'Interval' : 'Intervalo'}: ${medicamentoSelecionado.intervalo || '-'}
 
-CÁLCULO
-Fórmula: ${formula}
-Dose diária (mg/kg): ${dose}
-${notasMed ? `\nOBSERVAÇÕES:\n${notasMed}` : ''}
+${isEn ? 'CALCULATION' : 'CÁLCULO'}
+${isEn ? 'Formula' : 'Fórmula'}: ${formula}
+${isEn ? 'Daily Dose' : 'Dose diária'} (mg/kg): ${dose}
+${notasMed ? `\n${isEn ? 'OBSERVATIONS' : 'OBSERVAÇÕES'}:\n${notasMed}` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Profissional Responsável: ${profissionalSelecionado?.nome || '-'}
+${isEn ? 'Responsible Professional' : 'Profissional Responsável'}: ${profissionalSelecionado?.nome || '-'}
 ${tipoProfissional === 'medico'
   ? `CRM: ${profissionalSelecionado?.crm || '-'}`
   : `COREN: ${profissionalSelecionado?.coren || '-'}`} - ${profissionalSelecionado?.estado || ''}
 
-Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-BR')}  ${isEn ? 'Time' : 'Hora'}: ${new Date().toLocaleTimeString(isEn ? 'en-US' : 'pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
 
     setPrescricao(prescricaoTexto);
   };
@@ -161,11 +187,11 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
   // ─── Salvar no histórico via API ────────────────────────────────────────────
   const handleSalvar = async () => {
     if (!resultado) {
-      toast.warning('Gere o cálculo antes de salvar.');
+      toast.warning(t('common.status') === 'Status' ? 'Generate calculation before saving.' : 'Gere o cálculo antes de salvar.');
       return;
     }
     if (jaFoiSalva) {
-      toast.info('ℹ️ Esta consulta já foi salva. Modifique algum dado e recalcule para salvar novamente.');
+      toast.info(t('common.status') === 'Status' ? 'ℹ️ This consultation has already been saved. Modify data and recalculate to save again.' : 'ℹ️ Esta consulta já foi salva. Modifique algum dado e recalcule para salvar novamente.');
       return;
     }
 
@@ -180,9 +206,9 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
         observacoes: prescricao,
       });
       setJaFoiSalva(true);
-      toast.success('✅ Atendimento salvo no histórico com sucesso!');
+      toast.success(t('common.status') === 'Status' ? '✅ Consultation saved to history successfully!' : '✅ Atendimento salvo no histórico com sucesso!');
     } catch {
-      toast.error('Erro ao salvar consulta. Verifique a conexão com o servidor.');
+      toast.error(t('common.status') === 'Status' ? 'Error saving consultation. Check server connection.' : 'Erro ao salvar consulta. Verifique a conexão com o servidor.');
     } finally {
       setSalvando(false);
     }
@@ -198,7 +224,7 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
     setResultado(null);
     setPrescricao('');
     setJaFoiSalva(false);
-    toast.info('Campos limpos.');
+    toast.info(t('common.status') === 'Status' ? 'Fields cleared.' : 'Campos limpos.');
   };
 
 
@@ -220,12 +246,13 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
-    doc.text('Dose Certa - Uso Interno', margin, 12);
+    const isEn = t('common.status') === 'Status';
+    doc.text(isEn ? `Dose Certa - Internal Use` : 'Dose Certa - Uso Interno', margin, 12);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text('Sistema de Dosagem de Medicamentos', margin, 20);
+    doc.text(isEn ? 'Medication Dosage System' : 'Sistema de Dosagem de Medicamentos', margin, 20);
     doc.setFontSize(10);
-    doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 20, { align: 'right' });
+    doc.text(isEn ? `Issued on: ${new Date().toLocaleString('en-US')}` : `Emitido em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 20, { align: 'right' });
 
     // Conteúdo da prescrição
     doc.setTextColor(30, 30, 30);
@@ -247,9 +274,9 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
     });
 
     const nomePaciente = pacienteSelecionado?.nome?.replace(/\s+/g, '_') || 'paciente';
-    const dataHoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
-    doc.save(`receituario_interno_${nomePaciente}_${dataHoje}.pdf`);
-    toast.success('Receituário Interno gerado com sucesso!');
+    const dataHoje = new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-BR').replace(/\//g, '-');
+    doc.save(`internal_receipt_${nomePaciente}_${dataHoje}.pdf`);
+    toast.success(isEn ? 'Internal Receipt generated successfully!' : 'Receituário Interno gerado com sucesso!');
   };
 
   // ─── Exportar PDF Receita Digital (Paciente) ──────────────────────────────────────────────────────────
@@ -264,10 +291,8 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
     const pageWidth = doc.internal.pageSize.getWidth();
 
     // Estilo mais clean e profissional
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(22);
-    doc.setTextColor(30, 58, 138); // blue-900
-    doc.text('RECEITUÁRIO DIGITAL', pageWidth / 2, 30, { align: 'center' });
+    const isEn = t('common.status') === 'Status';
+    doc.text(isEn ? 'DIGITAL PRESCRIPTION' : 'RECEITUÁRIO DIGITAL', pageWidth / 2, 30, { align: 'center' });
     
     doc.setLineWidth(0.5);
     doc.setDrawColor(200, 200, 200);
@@ -277,19 +302,19 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
-    doc.text(`Paciente: ${pacienteSelecionado?.nome || ''}`, margin, 50);
+    doc.text(`${isEn ? 'Patient' : 'Paciente'}: ${pacienteSelecionado?.nome || ''}`, margin, 50);
     
     // Mostra CPF ou Passaporte (tipoDocumento se existir)
     const docIdentificacao = pacienteSelecionado?.cpf || '';
-    doc.text(`Documento: ${docIdentificacao}`, margin, 58);
-    doc.text(`Idade: ${pacienteSelecionado?.idade || ''} anos`, margin, 66);
+    doc.text(`${isEn ? 'Document' : 'Documento'}: ${docIdentificacao}`, margin, 58);
+    doc.text(`${isEn ? 'Age' : 'Idade'}: ${pacienteSelecionado?.idade || ''} ${isEn ? 'years' : 'anos'}`, margin, 66);
 
     doc.line(margin, 75, pageWidth - margin, 75);
 
     // Medicamento
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.text('Prescrição:', margin, 90);
+    doc.text(`${isEn ? 'Prescription' : 'Prescrição'}:`, margin, 90);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
@@ -301,9 +326,9 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
     
-    const doseTxt = `Dose diária recomendada: ${resultado.valor} ${resultado.unidade}`;
-    const intervaloTxt = medicamentoSelecionado?.intervalo && medicamentoSelecionado.intervalo !== 'undefined' ? `Intervalo: ${medicamentoSelecionado.intervalo}` : '';
-    const viaTxt = 'Uso conforme orientação médica.';
+    const doseTxt = `${isEn ? 'Recommended daily dose' : 'Dose diária recomendada'}: ${resultado.valor} ${resultado.unidade}`;
+    const intervaloTxt = medicamentoSelecionado?.intervalo && medicamentoSelecionado.intervalo !== 'undefined' ? `${isEn ? 'Interval' : 'Intervalo'}: ${medicamentoSelecionado.intervalo}` : '';
+    const viaTxt = isEn ? 'Use according to medical guidance.' : 'Uso conforme orientação médica.';
     
     doc.text(doseTxt, margin + 5, 115);
     if (intervaloTxt) doc.text(intervaloTxt, margin + 5, 122);
@@ -332,46 +357,48 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
     // Rodapé
     doc.setFontSize(9);
     doc.setTextColor(150, 150, 150);
-    doc.text(`Dose Certa - ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, pageWidth / 2, 280, { align: 'center' });
+    doc.text(`Dose Certa - ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-BR')} ${new Date().toLocaleTimeString(isEn ? 'en-US' : 'pt-BR', { hour: '2-digit', minute: '2-digit' })}`, pageWidth / 2, 280, { align: 'center' });
 
     const nomeArquivo = pacienteSelecionado?.nome?.replace(/\s+/g, '_') || 'paciente';
-    doc.save(`receita_digital_${nomeArquivo}.pdf`);
-    toast.success('Receita Digital gerada com sucesso!');
+    doc.save(`digital_prescription_${nomeArquivo}.pdf`);
+    toast.success(isEn ? 'Digital Prescription generated successfully!' : 'Receita Digital gerada com sucesso!');
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       {/* ── Seleção de Dados ── */}
-      <Card>
-        <CardHeader className="bg-gray-100">
-          <CardTitle className="flex items-center gap-2">
-            <Calculator className="w-5 h-5" />
-            Dados da Consulta
+      <Card className="border-slate-200/60 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl shadow-sm">
+        <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
+            <Calculator className="w-5 h-5 text-blue-500" />
+            {t('consulta.title')}
           </CardTitle>
         </CardHeader>
-        <CardContent className="mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <CardContent className="mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Tipo de profissional */}
             <div className="space-y-2">
-              <Label>Profissional</Label>
+              <Label className="text-slate-600 dark:text-slate-300 font-medium">{t('consulta.prof.label')}</Label>
               <Select value={tipoProfissional} onValueChange={(v: any) => {
                 setTipoProfissional(v);
                 setProfissionalId('');
               }}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-blue-500/50">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="medico">Médico</SelectItem>
-                  <SelectItem value="enfermeiro">Enfermeiro</SelectItem>
+                  <SelectItem value="medico">{t('consulta.prof.medico')}</SelectItem>
+                  <SelectItem value="enfermeiro">{t('consulta.prof.enfermeiro')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Médico / Enfermeiro */}
             <div className="space-y-2">
-              <Label>{tipoProfissional === 'medico' ? 'Médico' : 'Enfermeiro'}</Label>
+              <Label className="text-slate-600 dark:text-slate-300 font-medium">{tipoProfissional === 'medico' ? t('consulta.prof.medico') : t('consulta.prof.enfermeiro')}</Label>
               <Select value={profissionalId} onValueChange={setProfissionalId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={`Selecione o ${tipoProfissional}`} />
+                <SelectTrigger className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-blue-500/50">
+                  <SelectValue placeholder={tipoProfissional === 'medico' ? t('consulta.prof.select_medico') : t('consulta.prof.select_enfermeiro')} />
                 </SelectTrigger>
                 <SelectContent>
                   {profissionais.map(p => (
@@ -385,15 +412,15 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
 
             {/* Paciente */}
             <div className="space-y-2">
-              <Label>Paciente</Label>
+              <Label className="text-slate-600 dark:text-slate-300 font-medium">{t('consulta.paciente')}</Label>
               <Select value={pacienteId} onValueChange={setPacienteId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o paciente" />
+                <SelectTrigger className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-blue-500/50">
+                  <SelectValue placeholder={t('consulta.paciente.select')} />
                 </SelectTrigger>
                 <SelectContent>
                   {pacientes.map(p => (
                     <SelectItem key={p.id} value={p.id.toString()}>
-                      {p.nome} (CPF: {p.cpf.substring(0, 11)})
+                      {p.nome} (Doc: {p.cpf})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -402,10 +429,10 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
 
             {/* Medicamento */}
             <div className="space-y-2">
-              <Label>Medicamento</Label>
+              <Label className="text-slate-600 dark:text-slate-300 font-medium">{t('consulta.med')}</Label>
               <Select value={medicamentoId} onValueChange={setMedicamentoId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o medicamento" />
+                <SelectTrigger className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-blue-500/50">
+                  <SelectValue placeholder={t('consulta.med.select')} />
                 </SelectTrigger>
                 <SelectContent>
                   {medicamentos.map(m => (
@@ -419,13 +446,15 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
 
             {/* Tipo de Cálculo */}
             <div className="space-y-2">
-              <Label>Tipo de Cálculo</Label>
+              <Label className="text-slate-600 dark:text-slate-300 font-medium">{t('consulta.tipo_calc')}</Label>
               <Select value={tipoCalculo} onValueChange={(v: TipoCalculo) => setTipoCalculo(v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-blue-500/50">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="dose">Dose (mg/kg)</SelectItem>
-                  <SelectItem value="volume">Volume (mL/h)</SelectItem>
-                  <SelectItem value="gotas">Gotas por minuto</SelectItem>
+                  <SelectItem value="dose">{t('consulta.calc.dose')}</SelectItem>
+                  <SelectItem value="volume">{t('consulta.calc.volume')}</SelectItem>
+                  <SelectItem value="gotas">{t('consulta.calc.gotas')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -434,11 +463,11 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
             <div className="flex items-end">
               <Button
                 onClick={calcularDose}
-                disabled={!pacienteId || !medicamentoId}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                disabled={!pacienteId || !medicamentoId || !profissionalId}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:shadow-none transition-all duration-300"
               >
                 <Calculator className="w-4 h-4 mr-2" />
-                Gerar Cálculo
+                {t('consulta.btn.gerar')}
               </Button>
             </div>
           </div>
@@ -446,42 +475,44 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
       </Card>
 
       {/* ── Resultado do Cálculo ── */}
-      <Card>
-        <CardHeader className="bg-gray-100">
-          <CardTitle>Resultado do Cálculo</CardTitle>
+      <Card className="border-slate-200/60 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl shadow-sm">
+        <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <CardTitle className="text-slate-800 dark:text-slate-100">{t('consulta.result.title')}</CardTitle>
         </CardHeader>
-        <CardContent className="mt-4">
-          <div className="bg-white border-2 border-gray-200 rounded-lg p-6 min-h-[220px]">
+        <CardContent className="mt-6">
+          <div className="bg-white/80 dark:bg-slate-900/80 border-2 border-slate-200/50 dark:border-slate-800 rounded-xl p-6 min-h-[220px] shadow-inner backdrop-blur-md">
             {resultado ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                  <p><span className="font-medium">Medicamento:</span> {resultado.medicamento}</p>
-                  <p><span className="font-medium">Tipo de Cálculo:</span> {
-                    tipoCalculo === 'dose' ? 'Dose (mg/kg)' :
-                    tipoCalculo === 'volume' ? 'Volume (mL/h)' : 'Gotas/min'
+              <div className="space-y-4 animate-in slide-in-from-bottom-2 duration-300">
+                <div className="grid grid-cols-2 gap-4 text-sm text-slate-600 dark:text-slate-400">
+                  <p><span className="font-semibold text-slate-800 dark:text-slate-200">{t('consulta.result.med')}</span> {resultado.medicamento}</p>
+                  <p><span className="font-semibold text-slate-800 dark:text-slate-200">{t('consulta.result.type')}</span> {
+                    tipoCalculo === 'dose' ? t('consulta.calc.dose') :
+                    tipoCalculo === 'volume' ? t('consulta.calc.volume') : t('consulta.calc.gotas')
                   }</p>
                 </div>
 
-                <div className="border-t pt-4">
-                  <p className="text-sm font-medium mb-1">Fórmula aplicada:</p>
-                  <p className="bg-gray-50 p-3 rounded text-sm font-mono">{resultado.formula}</p>
+                <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
+                  <p className="text-sm font-semibold mb-2 text-slate-800 dark:text-slate-200">{t('consulta.result.formula')}</p>
+                  <p className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-lg text-sm font-mono text-slate-700 dark:text-slate-300 border border-slate-100 dark:border-slate-800">{resultado.formula}</p>
                 </div>
 
-                <div className="border-t pt-4 bg-blue-50 p-4 rounded-lg flex items-center justify-between">
-                  <p className="text-sm text-gray-600 font-medium">RESULTADO FINAL:</p>
-                  <p className="text-2xl font-bold text-blue-600">{resultado.valor} {resultado.unidade}</p>
+                <div className="border-t border-slate-200 dark:border-slate-800 pt-4 mt-2">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-xl flex items-center justify-between border border-blue-100/50 dark:border-blue-800/30 shadow-sm">
+                    <p className="text-sm text-blue-800 dark:text-blue-300 font-bold tracking-wide">{t('consulta.result.final')}</p>
+                    <p className="text-3xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">{resultado.valor} <span className="text-xl font-bold text-blue-600/80 dark:text-blue-400/80">{resultado.unidade}</span></p>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                  <p><span className="font-medium">Intervalo:</span> {medicamentoSelecionado?.intervalo || '-'}</p>
-                  <p><span className="font-medium">Dose Máxima:</span> {medicamentoSelecionado?.doseMaxima || '-'}</p>
+                <div className="grid grid-cols-2 gap-4 text-sm text-slate-600 dark:text-slate-400 pt-2">
+                  <p><span className="font-semibold text-slate-800 dark:text-slate-200">{t('consulta.result.interval')}</span> {medicamentoSelecionado?.intervalo || '-'}</p>
+                  <p><span className="font-semibold text-slate-800 dark:text-slate-200">{t('consulta.result.maxdose')}</span> {medicamentoSelecionado?.doseMaxima || '-'}</p>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-400">
+              <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">
                 <div className="text-center">
-                  <Calculator className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  <p>Preencha os campos acima e clique em "Gerar Cálculo"</p>
+                  <Calculator className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p className="font-medium">{t('consulta.result.empty')}</p>
                 </div>
               </div>
             )}
@@ -490,63 +521,63 @@ Data: ${new Date().toLocaleDateString('pt-BR')}  Hora: ${new Date().toLocaleTime
       </Card>
 
       {/* ── Prescrição ── */}
-      <Card>
-        <CardHeader className="bg-gray-100">
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            Prescrição
+      <Card className="border-slate-200/60 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl shadow-sm">
+        <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
+            <FileText className="w-5 h-5 text-indigo-500" />
+            {t('consulta.presc.title')}
           </CardTitle>
         </CardHeader>
-        <CardContent className="mt-4 space-y-4">
+        <CardContent className="mt-6 space-y-4">
           <Textarea
             value={prescricao}
             onChange={e => setPrescricao(e.target.value)}
-            placeholder="A prescrição será gerada automaticamente após o cálculo..."
+            placeholder={t('consulta.presc.placeholder')}
             rows={15}
-            className="font-mono text-sm"
+            className="font-mono text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 focus-visible:ring-indigo-500/50"
           />
 
           {/* ── Botões abaixo da prescrição ── */}
-          <div className="flex flex-wrap gap-3 pt-2 border-t">
+          <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
             <Button
               onClick={handleSalvar}
               disabled={!resultado || salvando}
               className={jaFoiSalva
-                ? "bg-gray-400 hover:bg-gray-400 cursor-default"
-                : "bg-green-600 hover:bg-green-700"
+                ? "bg-slate-400 hover:bg-slate-400 cursor-default text-white"
+                : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/20 transition-all"
               }
             >
               <Save className="w-4 h-4 mr-2" />
-              {salvando ? 'Salvando...' : jaFoiSalva ? '✓ Consulta Salva' : 'Salvar Consulta'}
+              {salvando ? t('consulta.btn.saving') : jaFoiSalva ? t('consulta.btn.saved') : t('consulta.btn.save')}
             </Button>
 
             <Button
               onClick={handleExportarReceituario}
-              disabled={!prescricao}
+              disabled={!jaFoiSalva}
               variant="outline"
-              className="border-gray-300 text-gray-700 hover:bg-gray-100"
+              className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
             >
               <FileText className="w-4 h-4 mr-2" />
-              Receituário (Interno)
+              {t('consulta.btn.pdf_internal')}
             </Button>
 
             <Button
               onClick={handleExportarReceitaDigital}
-              disabled={!resultado}
+              disabled={!jaFoiSalva}
               variant="outline"
-              className="border-blue-300 text-blue-700 hover:bg-blue-50"
+              className="border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 disabled:opacity-50"
             >
               <FileText className="w-4 h-4 mr-2" />
-              Receita Digital (Paciente)
+              {t('consulta.btn.pdf_digital')}
             </Button>
 
             <Button
               onClick={handleLimpar}
               variant="outline"
-              className="border-red-200 text-red-600 hover:bg-red-50 ml-auto"
+              className="border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 ml-auto"
             >
               <Trash2 className="w-4 h-4 mr-2" />
-              Limpar Campos
+              {t('consulta.btn.clear')}
             </Button>
           </div>
         </CardContent>

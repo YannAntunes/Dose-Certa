@@ -33,8 +33,18 @@ async function makeRequest<T>(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      window.location.reload();
+      throw new Error('Sessão expirada. Faça login novamente.');
+    }
     const error = await response.json().catch(() => ({}));
     throw new Error(error.message || `Request failed with status ${response.status}`);
+  }
+
+  // Se o status for 204 No Content, não tente parsear JSON (como no DELETE)
+  if (response.status === 204) {
+    return {} as T;
   }
 
   return response.json();
