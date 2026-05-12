@@ -9,24 +9,23 @@ public class ConsultaRequestDTO {
     private Long medicoId;
     private Long enfermeiroId;
     private TipoCalculo tipoCalculo;
+    private String observacoes;
 
-    public Long getPacienteId() {
-        return pacienteId;
-    }
+    public Long getPacienteId() { return pacienteId; }
+    public void setPacienteId(Long pacienteId) { this.pacienteId = pacienteId; }
 
-    public Long getMedicamentoId() {
-        return medicamentoId;
-    }
+    public Long getMedicamentoId() { return medicamentoId; }
+    public void setMedicamentoId(Long medicamentoId) { this.medicamentoId = medicamentoId; }
 
-    public Long getMedicoId() {
-        return medicoId;
-    }
+    public Long getMedicoId() { return medicoId; }
+    public void setMedicoId(Long medicoId) { this.medicoId = medicoId; }
 
-    public Long getEnfermeiroId() {
-        return enfermeiroId;
-    }
+    public Long getEnfermeiroId() { return enfermeiroId; }
+    public void setEnfermeiroId(Long enfermeiroId) { this.enfermeiroId = enfermeiroId; }
 
-    public TipoCalculo getTipoCalculo() {
-        return tipoCalculo;
-    }
+    public TipoCalculo getTipoCalculo() { return tipoCalculo; }
+    public void setTipoCalculo(TipoCalculo tipoCalculo) { this.tipoCalculo = tipoCalculo; }
+
+    public String getObservacoes() { return observacoes; }
+    public void setObservacoes(String observacoes) { this.observacoes = observacoes; }
 }

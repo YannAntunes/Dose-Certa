@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, AlertCircle, Loader2 } from 'lucide-react';
+import { Shield, AlertCircle, Loader2, HelpCircle, X, Info } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -14,6 +14,7 @@ export default function Login({ onLogin }: LoginProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   useEffect(() => {
     const checkServer = async () => {
@@ -45,6 +46,7 @@ export default function Login({ onLogin }: LoginProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+
         {/* Logo e Título */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
@@ -55,7 +57,7 @@ export default function Login({ onLogin }: LoginProps) {
         </div>
 
         {/* Formulário */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="username">Usuário</Label>
             <Input
@@ -88,16 +90,51 @@ export default function Login({ onLogin }: LoginProps) {
             />
           </div>
 
+          {/* Botão "Esqueci a senha" */}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              id="forgot-password-btn"
+              onClick={() => setShowForgotPassword(true)}
+              className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 transition-colors"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              Esqueci a senha
+            </button>
+          </div>
+
+          {/* Aviso de senha esquecida */}
+          {showForgotPassword && (
+            <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 p-4 rounded-lg">
+              <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-blue-800">Redefinição de senha</p>
+                <p className="text-sm text-blue-700 mt-1">
+                  Para trocar sua senha, entre em contato com o <strong>administrador do sistema</strong>.
+                  Apenas o administrador pode redefinir credenciais de acesso.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(false)}
+                className="text-blue-400 hover:text-blue-600 transition-colors"
+                aria-label="Fechar aviso"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {error && (
             <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md">
-              <AlertCircle className="w-5 h-5" />
+              <AlertCircle className="w-5 h-5 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           <Button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700"
+            className="w-full bg-blue-600 hover:bg-blue-700 mt-2"
             disabled={loading || serverStatus === 'offline'}
           >
             {loading ? (

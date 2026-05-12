@@ -32,11 +32,18 @@ public class JwtService {
     }
 
     public String getLogin(String token) {
+        return getClaims(token).getSubject();
+    }
+
+    public String getPerfil(String token) {
+        return getClaims(token).get("perfil", String.class);
+    }
+
+    private io.jsonwebtoken.Claims getClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(secret.getBytes(StandardCharsets.UTF_8))
                 .build()
                 .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+                .getBody();
     }
 }

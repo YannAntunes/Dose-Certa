@@ -37,6 +37,10 @@ public class Consulta {
 
     private String mensagemAlerta;
 
+    /** Texto completo da prescrição gerada */
+    @Column(columnDefinition = "TEXT")
+    private String observacoes;
+
     // 🔹 CONSTRUTOR VAZIO (OBRIGATÓRIO PARA JPA)
     public Consulta() {
         this.dataHora = LocalDateTime.now();
@@ -126,6 +130,14 @@ public class Consulta {
 
     public void setMensagemAlerta(String mensagemAlerta) {
         this.mensagemAlerta = mensagemAlerta;
+    }
+
+    public String getObservacoes() {
+        return observacoes;
+    }
+
+    public void setObservacoes(String observacoes) {
+        this.observacoes = observacoes;
     }
 
 }

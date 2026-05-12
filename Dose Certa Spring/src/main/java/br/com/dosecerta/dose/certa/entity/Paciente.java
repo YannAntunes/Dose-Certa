@@ -22,6 +22,12 @@ public class Paciente {
     @Column(nullable = false)
     private int idade;
 
+    @Column
+    private String tipoDocumento;
+
+    @Column
+    private String paisOrigem;
+
     // Construtor exigido pelo JPA
     public Paciente() {}
 
@@ -60,5 +66,21 @@ public class Paciente {
 
     public void setIdade(int idade) {
         this.idade = idade;
+    }
+
+    public String getTipoDocumento() {
+        return tipoDocumento;
+    }
+
+    public void setTipoDocumento(String tipoDocumento) {
+        this.tipoDocumento = tipoDocumento;
+    }
+
+    public String getPaisOrigem() {
+        return paisOrigem;
+    }
+
+    public void setPaisOrigem(String paisOrigem) {
+        this.paisOrigem = paisOrigem;
     }
 }

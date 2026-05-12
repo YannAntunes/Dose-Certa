@@ -26,8 +26,33 @@ public class MedicoService {
             throw new IllegalArgumentException("Estado inválido");
 
         medico.setEstado(medico.getEstado().toUpperCase());
-
         return repository.save(medico);
+    }
+
+    public Medico atualizar(Long id, Medico dados) {
+        Medico existente = repository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Médico não encontrado"));
+
+        if (dados.getNome() == null || dados.getNome().isBlank())
+            throw new IllegalArgumentException("Nome inválido");
+
+        if (dados.getCrm() == null || dados.getCrm() <= 0)
+            throw new IllegalArgumentException("CRM inválido");
+
+        if (dados.getEstado() == null || dados.getEstado().isBlank())
+            throw new IllegalArgumentException("Estado inválido");
+
+        existente.setNome(dados.getNome());
+        existente.setCrm(dados.getCrm());
+        existente.setEstado(dados.getEstado().toUpperCase());
+
+        return repository.save(existente);
+    }
+
+    public void deletar(Long id) {
+        if (!repository.existsById(id))
+            throw new IllegalArgumentException("Médico não encontrado");
+        repository.deleteById(id);
     }
 
     public List<Medico> listarTodos() {

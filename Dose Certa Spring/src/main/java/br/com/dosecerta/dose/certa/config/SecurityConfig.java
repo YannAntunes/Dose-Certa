@@ -39,6 +39,8 @@ public class SecurityConfig {
                         // Libera o endpoint de login
                         .requestMatchers(HttpMethod.POST, "/login").permitAll()
                         .requestMatchers("/login").permitAll()
+                        // Gerenciamento de usuarios: apenas ADMIN
+                        .requestMatchers("/usuarios/**").hasAuthority("ADMIN")
                         .anyRequest().authenticated()
                 )
 

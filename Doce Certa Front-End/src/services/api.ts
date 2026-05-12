@@ -114,7 +114,7 @@ export const pacienteService = {
 export interface Medico {
   id: number;
   nome: string;
-  crm: string;
+  crm: number;
   estado: string;
 }
 
@@ -218,37 +218,21 @@ export const medicamentoService = {
   },
 };
 
-// ========== CONSULTAS ==========
-export interface Consulta {
-  id: number;
+// ========== CONSULTAS (salvar no banco) ==========
+export interface ConsultaRequest {
   pacienteId: number;
-  medicoId: number;
-  data: string;
-  descricao: string;
+  medicamentoId: number;
+  medicoId?: number;
+  enfermeiroId?: number;
+  tipoCalculo: 'DOSE_MGKG' | 'VOLUME_MLH' | 'GOTAS_MIN';
+  observacoes?: string;
 }
 
 export const consultaService = {
-  listar: async (): Promise<Consulta[]> => {
-    return makeRequest<Consulta[]>('/consultas');
-  },
-
-  criar: async (consulta: Omit<Consulta, 'id'>): Promise<Consulta> => {
-    return makeRequest<Consulta>('/consultas', {
+  salvar: async (req: ConsultaRequest): Promise<void> => {
+    await makeRequest<void>('/consultas', {
       method: 'POST',
-      body: JSON.stringify(consulta),
-    });
-  },
-
-  atualizar: async (id: number, consulta: Partial<Consulta>): Promise<Consulta> => {
-    return makeRequest<Consulta>(`/consultas/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(consulta),
-    });
-  },
-
-  deletar: async (id: number): Promise<void> => {
-    return makeRequest<void>(`/consultas/${id}`, {
-      method: 'DELETE',
+      body: JSON.stringify(req),
     });
   },
 };
@@ -256,18 +240,69 @@ export const consultaService = {
 // ========== HISTÓRICO ==========
 export interface Historico {
   id: number;
-  pacienteId: number;
-  acao: string;
-  data: string;
-  usuario: string;
+  data: string;          // ISO string vindo de dataHora
+  paciente: string;
+  profissional: string;
+  tipoProfissional: string;
+  medicamento: string;
+  resultado: string;     // "valor unidade"
+  observacoes?: string;
 }
 
 export const historicoService = {
   listar: async (): Promise<Historico[]> => {
-    return makeRequest<Historico[]>('/historico');
+    // O backend retorna ConsultaDTO[], mapeamos para o formato que o frontend espera
+    const raw: any[] = await makeRequest<any[]>('/historico');
+    return raw.map(c => ({
+      id: c.id,
+      data: c.dataHora,
+      paciente: c.paciente,
+      profissional: c.profissional,
+      tipoProfissional: c.tipoProfissional,
+      medicamento: c.medicamento,
+      resultado: `${Number(c.resultado).toFixed(2)} ${c.unidade}`,
+      observacoes: c.observacoes,
+    }));
+  },
+};
+
+// ========== USUÁRIOS ==========
+export type PerfilUsuario = 'ADMIN' | 'MEDICO' | 'ENFERMEIRO' | 'RECEPCAO';
+
+export interface Usuario {
+  id: number;
+  login: string;
+  perfil: PerfilUsuario;
+}
+
+export interface UsuarioRequest {
+  login: string;
+  senha?: string;
+  perfil: PerfilUsuario;
+}
+
+export const usuarioService = {
+  listar: async (): Promise<Usuario[]> => {
+    return makeRequest<Usuario[]>('/usuarios');
   },
 
-  listarPorPaciente: async (pacienteId: number): Promise<Historico[]> => {
-    return makeRequest<Historico[]>(`/historico/paciente/${pacienteId}`);
+  criar: async (usuario: UsuarioRequest): Promise<Usuario> => {
+    return makeRequest<Usuario>('/usuarios', {
+      method: 'POST',
+      body: JSON.stringify(usuario),
+    });
+  },
+
+  atualizar: async (id: number, usuario: UsuarioRequest): Promise<Usuario> => {
+    return makeRequest<Usuario>(`/usuarios/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(usuario),
+    });
+  },
+
+  deletar: async (id: number): Promise<void> => {
+    return makeRequest<void>(`/usuarios/${id}`, {
+      method: 'DELETE',
+    });
   },
 };

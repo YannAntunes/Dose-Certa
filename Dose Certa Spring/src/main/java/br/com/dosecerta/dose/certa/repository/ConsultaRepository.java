@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ConsultaRepository extends JpaRepository<Consulta, Long> {
+    java.util.List<Consulta> findAllByOrderByDataHoraDesc();
 }

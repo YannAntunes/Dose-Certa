@@ -77,7 +77,8 @@ public class ConsultaController {
                 medicamento,
                 medico,
                 enfermeiro,
-                request.getTipoCalculo()
+                request.getTipoCalculo(),
+                request.getObservacoes()
         );
 
         return ResponseEntity

@@ -26,8 +26,33 @@ public class EnfermeiroService {
             throw new IllegalArgumentException("Estado inválido");
 
         enfermeiro.setEstado(enfermeiro.getEstado().toUpperCase());
-
         return repository.save(enfermeiro);
+    }
+
+    public Enfermeiro atualizar(Long id, Enfermeiro dados) {
+        Enfermeiro existente = repository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Enfermeiro não encontrado"));
+
+        if (dados.getNome() == null || dados.getNome().isBlank())
+            throw new IllegalArgumentException("Nome inválido");
+
+        if (dados.getCoren() == null || dados.getCoren().isBlank())
+            throw new IllegalArgumentException("COREN inválido");
+
+        if (dados.getEstado() == null || dados.getEstado().isBlank())
+            throw new IllegalArgumentException("Estado inválido");
+
+        existente.setNome(dados.getNome());
+        existente.setCoren(dados.getCoren());
+        existente.setEstado(dados.getEstado().toUpperCase());
+
+        return repository.save(existente);
+    }
+
+    public void deletar(Long id) {
+        if (!repository.existsById(id))
+            throw new IllegalArgumentException("Enfermeiro não encontrado");
+        repository.deleteById(id);
     }
 
     public List<Enfermeiro> listarTodos() {

@@ -1,5 +1,7 @@
-import { Users, Stethoscope, Heart, Pill, Calculator, Clock } from 'lucide-react';
+import { Users, Stethoscope, Heart, Pill, Calculator, Clock, Activity, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Historico } from '../../services/api';
 
 interface DashboardHomeProps {
   stats: {
@@ -9,9 +11,10 @@ interface DashboardHomeProps {
     medicamentos: number;
     consultas: number;
   };
+  historico?: Historico[];
 }
 
-export default function DashboardHome({ stats }: DashboardHomeProps) {
+export default function DashboardHome({ stats, historico = [] }: DashboardHomeProps) {
   const cards = [
     {
       title: 'Pacientes',
@@ -50,6 +53,47 @@ export default function DashboardHome({ stats }: DashboardHomeProps) {
     }
   ];
 
+  // ─── Processamento dos Relatórios ───
+  const getMonthlyData = () => {
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const counts = new Array(12).fill(0);
+    
+    historico.forEach(item => {
+      if (item.data) {
+        try {
+          const date = new Date(item.data);
+          if (!isNaN(date.getTime())) {
+            counts[date.getMonth()]++;
+          }
+        } catch (e) {
+          // ignora
+        }
+      }
+    });
+
+    return months.map((month, index) => ({
+      name: month,
+      consultas: counts[index]
+    }));
+  };
+
+  const getTopMedications = () => {
+    const medCounts: Record<string, number> = {};
+    historico.forEach(item => {
+      if (item.medicamento) {
+        medCounts[item.medicamento] = (medCounts[item.medicamento] || 0) + 1;
+      }
+    });
+
+    return Object.entries(medCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5); // Top 5
+  };
+
+  const chartData = getMonthlyData();
+  const topMedications = getTopMedications();
+
   return (
     <div className="space-y-6">
       {/* Welcome Message */}
@@ -86,6 +130,80 @@ export default function DashboardHome({ stats }: DashboardHomeProps) {
             </Card>
           );
         })}
+      </div>
+
+      {/* ── Novas Sessões de Relatórios ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Gráfico de Atendimentos por Mês */}
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-blue-600" />
+              Atendimentos Mensais
+            </CardTitle>
+            <CardDescription>Volume de consultas realizadas ao longo dos meses</CardDescription>
+          </CardHeader>
+          <CardContent className="h-72">
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    cursor={{ fill: '#f3f4f6' }}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                  />
+                  <Bar dataKey="consultas" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-400">
+                Sem dados suficientes para o gráfico
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Medicamentos Mais Usados */}
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="w-5 h-5 text-purple-600" />
+              Medicamentos Mais Prescritos
+            </CardTitle>
+            <CardDescription>Ranking de utilização no sistema</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {topMedications.length > 0 ? (
+              <div className="space-y-4">
+                {topMedications.map((item, index) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        index === 0 ? 'bg-amber-100 text-amber-600' :
+                        index === 1 ? 'bg-gray-100 text-gray-600' :
+                        index === 2 ? 'bg-orange-100 text-orange-600' :
+                        'bg-blue-50 text-blue-600'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <span className="font-medium text-gray-700">{item.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-gray-900">{item.value}</span>
+                      <span className="text-xs text-gray-500">usos</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="h-48 flex items-center justify-center text-gray-400">
+                Sem histórico de medicamentos
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Information Cards */}

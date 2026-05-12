@@ -21,7 +21,8 @@ public class ConsultaService {
             Medicamento medicamento,
             Medico medico,
             Enfermeiro enfermeiro,
-            TipoCalculo tipoCalculo
+            TipoCalculo tipoCalculo,
+            String observacoes
     ) {
 
         if (paciente == null) {
@@ -99,11 +100,12 @@ public class ConsultaService {
         consulta.setAlertaDoseMaxima(alertaDoseMaxima);
         consulta.setMensagemAlerta(mensagemAlerta);
         consulta.setDataHora(LocalDateTime.now());
+        consulta.setObservacoes(observacoes);
 
         return consultaRepository.save(consulta);
     }
 
     public List<Consulta> listar() {
-        return consultaRepository.findAll();
+        return consultaRepository.findAllByOrderByDataHoraDesc();
     }
 }

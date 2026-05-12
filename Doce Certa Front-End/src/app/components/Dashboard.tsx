@@ -7,7 +7,8 @@ import {
   Calculator, 
   Clock, 
   LogOut,
-  LayoutDashboard
+  LayoutDashboard,
+  UserCog
 } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -36,6 +37,7 @@ export default function Dashboard({
     { id: 'medicamentos', label: 'Medicamentos', icon: Pill, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
     { id: 'consulta', label: 'Consulta / Cálculo', icon: Calculator, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
     { id: 'historico', label: 'Histórico', icon: Clock, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
+    { id: 'usuarios', label: 'Usuários', icon: UserCog, roles: ['ADMIN', 'Administrador'] },
   ];
 
   const filteredMenuItems = menuItems.filter(item => item.roles.includes(role));

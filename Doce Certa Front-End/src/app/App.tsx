@@ -8,20 +8,25 @@ import Enfermeiros from './components/Enfermeiros';
 import Medicamentos from './components/Medicamentos';
 import Consulta from './components/Consulta';
 import Historico from './components/Historico';
+import Usuarios from './components/Usuarios';
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner';
-import { 
-  pacienteService, 
-  medicoService, 
-  enfermeiroService, 
+import {
+  pacienteService,
+  medicoService,
+  enfermeiroService,
   medicamentoService,
   historicoService,
+  consultaService,
+  usuarioService,
   authService,
   Paciente,
   Medico,
   Enfermeiro,
   Medicamento,
-  Historico as HistoricoType
+  Historico as HistoricoType,
+  Usuario,
+  UsuarioRequest,
 } from '../services/api';
 
 interface User {
@@ -34,12 +39,15 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState('dashboard');
 
-  // Estados para dados da API
+  // Dados da API
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [medicos, setMedicos] = useState<Medico[]>([]);
   const [enfermeiros, setEnfermeiros] = useState<Enfermeiro[]>([]);
   const [medicamentos, setMedicamentos] = useState<Medicamento[]>([]);
   const [historico, setHistorico] = useState<HistoricoType[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  /** Dados de um atendimento do histórico para pré-preencher a aba Consulta */
+  const [consultaInicial, setConsultaInicial] = useState<any | null>(null);
 
   // Estados de carregamento
   const [loadingPacientes, setLoadingPacientes] = useState(true);
@@ -47,11 +55,10 @@ function App() {
   const [loadingEnfermeiros, setLoadingEnfermeiros] = useState(true);
   const [loadingMedicamentos, setLoadingMedicamentos] = useState(true);
 
-  // Limpa token invalido do localStorage ao iniciar
+  // Limpa token inválido do localStorage ao iniciar
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      // Valida se o token ainda e aceito pelo backend
       fetch('http://localhost:8080/pacientes', {
         headers: { 'Authorization': `Bearer ${token}` }
       }).catch(() => {
@@ -68,13 +75,16 @@ function App() {
   useEffect(() => {
     if (user) {
       carregarDados();
+      // Carrega usuários apenas para ADMIN
+      if (user.role === 'ADMIN' || user.role === 'Administrador') {
+        carregarUsuarios();
+      }
     }
   }, [user]);
 
-
   const carregarDados = async () => {
     try {
-      const [pacientesData, medicosData, enfermeirosData, medicamentosData, historicoData] = 
+      const [pacientesData, medicosData, enfermeirosData, medicamentosData, historicoData] =
         await Promise.all([
           pacienteService.listar(),
           medicoService.listar(),
@@ -100,6 +110,15 @@ function App() {
       setLoadingMedicos(false);
       setLoadingEnfermeiros(false);
       setLoadingMedicamentos(false);
+    }
+  };
+
+  const carregarUsuarios = async () => {
+    try {
+      const data = await usuarioService.listar();
+      setUsuarios(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
     }
   };
 
@@ -129,51 +148,165 @@ function App() {
   const handleAddPaciente = async (paciente: Omit<Paciente, 'id'>) => {
     try {
       const newPaciente = await pacienteService.criar(paciente);
-      setPacientes([...pacientes, newPaciente]);
+      setPacientes(prev => [...prev, newPaciente]);
       toast.success('Paciente cadastrado com sucesso!');
-    } catch (error) {
-      console.error('Erro ao cadastrar paciente:', error);
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao cadastrar paciente');
+    }
+  };
+
+  const handleUpdatePaciente = async (id: number, paciente: Omit<Paciente, 'id'>) => {
+    try {
+      const updated = await pacienteService.atualizar(id, paciente);
+      setPacientes(prev => prev.map(p => p.id === id ? updated : p));
+      toast.success('Paciente atualizado com sucesso!');
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao atualizar paciente');
+    }
+  };
+
+  const handleDeletePaciente = async (id: number) => {
+    try {
+      await pacienteService.deletar(id);
+      setPacientes(prev => prev.filter(p => p.id !== id));
+      toast.success('Paciente excluído com sucesso!');
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao excluir paciente');
     }
   };
 
   const handleAddMedico = async (medico: Omit<Medico, 'id'>) => {
     try {
       const newMedico = await medicoService.criar(medico);
-      setMedicos([...medicos, newMedico]);
+      setMedicos(prev => [...prev, newMedico]);
       toast.success('Médico cadastrado com sucesso!');
-    } catch (error) {
-      console.error('Erro ao cadastrar médico:', error);
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao cadastrar médico');
+    }
+  };
+
+  const handleUpdateMedico = async (id: number, medico: Omit<Medico, 'id'>) => {
+    try {
+      const updated = await medicoService.atualizar(id, medico);
+      setMedicos(prev => prev.map(m => m.id === id ? updated : m));
+      toast.success('Médico atualizado com sucesso!');
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao atualizar médico');
+    }
+  };
+
+  const handleDeleteMedico = async (id: number) => {
+    try {
+      await medicoService.deletar(id);
+      setMedicos(prev => prev.filter(m => m.id !== id));
+      toast.success('Médico excluído com sucesso!');
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao excluir médico');
     }
   };
 
   const handleAddEnfermeiro = async (enfermeiro: Omit<Enfermeiro, 'id'>) => {
     try {
       const newEnfermeiro = await enfermeiroService.criar(enfermeiro);
-      setEnfermeiros([...enfermeiros, newEnfermeiro]);
+      setEnfermeiros(prev => [...prev, newEnfermeiro]);
       toast.success('Enfermeiro cadastrado com sucesso!');
-    } catch (error) {
-      console.error('Erro ao cadastrar enfermeiro:', error);
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao cadastrar enfermeiro');
+    }
+  };
+
+  const handleUpdateEnfermeiro = async (id: number, enfermeiro: Omit<Enfermeiro, 'id'>) => {
+    try {
+      const updated = await enfermeiroService.atualizar(id, enfermeiro);
+      setEnfermeiros(prev => prev.map(e => e.id === id ? updated : e));
+      toast.success('Enfermeiro atualizado com sucesso!');
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao atualizar enfermeiro');
+    }
+  };
+
+  const handleDeleteEnfermeiro = async (id: number) => {
+    try {
+      await enfermeiroService.deletar(id);
+      setEnfermeiros(prev => prev.filter(e => e.id !== id));
+      toast.success('Enfermeiro excluído com sucesso!');
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao excluir enfermeiro');
     }
   };
 
   const handleAddMedicamento = async (medicamento: Omit<Medicamento, 'id'>) => {
     try {
       const newMedicamento = await medicamentoService.criar(medicamento);
-      setMedicamentos([...medicamentos, newMedicamento]);
+      setMedicamentos(prev => [...prev, newMedicamento]);
       toast.success('Medicamento cadastrado com sucesso!');
-    } catch (error) {
-      console.error('Erro ao cadastrar medicamento:', error);
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao cadastrar medicamento');
+    }
+  };
+
+  const handleUpdateMedicamento = async (id: number, medicamento: Omit<Medicamento, 'id'>) => {
+    try {
+      const updated = await medicamentoService.atualizar(id, medicamento);
+      setMedicamentos(prev => prev.map(m => m.id === id ? updated : m));
+      toast.success('Medicamento atualizado com sucesso!');
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao atualizar medicamento');
+    }
+  };
+
+  const handleDeleteMedicamento = async (id: number) => {
+    try {
+      await medicamentoService.deletar(id);
+      setMedicamentos(prev => prev.filter(m => m.id !== id));
+      toast.success('Medicamento excluído com sucesso!');
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao excluir medicamento');
     }
   };
 
   const handleSaveConsulta = async (consulta: any) => {
     try {
-      // Aqui você pode chamar o serviço de consultas se existir
-      setHistorico([consulta, ...historico]);
-      toast.success('Consulta salva com sucesso!');
+      // Chamar a API real para persistir no banco
+      const tipoMap: Record<string, 'DOSE_MGKG' | 'VOLUME_MLH' | 'GOTAS_MIN'> = {
+        dose: 'DOSE_MGKG',
+        volume: 'VOLUME_MLH',
+        gotas: 'GOTAS_MIN',
+      };
+      await consultaService.salvar({
+        pacienteId: consulta.pacienteId,
+        medicamentoId: consulta.medicamentoId,
+        medicoId: consulta.tipoProfissional === 'medico' ? consulta.profissionalId : undefined,
+        enfermeiroId: consulta.tipoProfissional === 'enfermeiro' ? consulta.profissionalId : undefined,
+        tipoCalculo: tipoMap[consulta.tipoCalculo] ?? 'DOSE_MGKG',
+        observacoes: consulta.observacoes,
+      });
+      // Recarrega histórico do banco
+      const novoHistorico = await historicoService.listar();
+      setHistorico(novoHistorico);
     } catch (error) {
       console.error('Erro ao salvar consulta:', error);
+      throw error; // repassa para o componente Consulta mostrar o erro
     }
+  };
+
+  // Handlers de usuários
+  const handleAddUsuario = async (u: UsuarioRequest) => {
+    const created = await usuarioService.criar(u);
+    setUsuarios(prev => [...prev, created]);
+    toast.success(`Usuário "${created.login}" criado com sucesso!`);
+  };
+
+  const handleUpdateUsuario = async (id: number, u: UsuarioRequest) => {
+    const updated = await usuarioService.atualizar(id, u);
+    setUsuarios(prev => prev.map(usr => usr.id === id ? updated : usr));
+    toast.success(`Usuário "${updated.login}" atualizado com sucesso!`);
+  };
+
+  const handleDeleteUsuario = async (id: number) => {
+    await usuarioService.deletar(id);
+    setUsuarios(prev => prev.filter(usr => usr.id !== id));
+    toast.success('Usuário excluído com sucesso!');
   };
 
   if (!user) {
@@ -184,7 +317,7 @@ function App() {
     switch (currentPage) {
       case 'dashboard':
         return (
-          <DashboardHome 
+          <DashboardHome
             stats={{
               pacientes: pacientes.length,
               medicos: medicos.length,
@@ -192,16 +325,45 @@ function App() {
               medicamentos: medicamentos.length,
               consultas: historico.length
             }}
+            historico={historico}
           />
         );
       case 'pacientes':
-        return <Pacientes pacientes={pacientes} onAddPaciente={handleAddPaciente} />;
+        return (
+          <Pacientes
+            pacientes={pacientes}
+            onAddPaciente={handleAddPaciente}
+            onUpdatePaciente={handleUpdatePaciente}
+            onDeletePaciente={handleDeletePaciente}
+          />
+        );
       case 'medicos':
-        return <Medicos medicos={medicos} onAddMedico={handleAddMedico} />;
+        return (
+          <Medicos
+            medicos={medicos}
+            onAddMedico={handleAddMedico}
+            onUpdateMedico={handleUpdateMedico}
+            onDeleteMedico={handleDeleteMedico}
+          />
+        );
       case 'enfermeiros':
-        return <Enfermeiros enfermeiros={enfermeiros} onAddEnfermeiro={handleAddEnfermeiro} />;
+        return (
+          <Enfermeiros
+            enfermeiros={enfermeiros}
+            onAddEnfermeiro={handleAddEnfermeiro}
+            onUpdateEnfermeiro={handleUpdateEnfermeiro}
+            onDeleteEnfermeiro={handleDeleteEnfermeiro}
+          />
+        );
       case 'medicamentos':
-        return <Medicamentos medicamentos={medicamentos} onAddMedicamento={handleAddMedicamento} />;
+        return (
+          <Medicamentos
+            medicamentos={medicamentos}
+            onAddMedicamento={handleAddMedicamento}
+            onUpdateMedicamento={handleUpdateMedicamento}
+            onDeleteMedicamento={handleDeleteMedicamento}
+          />
+        );
       case 'consulta':
         return (
           <Consulta
@@ -210,20 +372,51 @@ function App() {
             enfermeiros={enfermeiros}
             medicamentos={medicamentos}
             onSaveConsulta={handleSaveConsulta}
+            initialData={consultaInicial}
           />
         );
       case 'historico':
-        return <Historico historico={historico} />;
+        return (
+          <Historico
+            historico={historico}
+            onReabrirConsulta={(item) => {
+              setConsultaInicial(item);
+              setCurrentPage('consulta');
+            }}
+            onRefresh={async () => {
+              try {
+                const updated = await historicoService.listar();
+                setHistorico(updated);
+                toast.success('Histórico atualizado com sucesso!');
+              } catch (e: any) {
+                toast.error(e?.message || 'Erro ao atualizar histórico');
+              }
+            }}
+          />
+        );
+      case 'usuarios':
+        return (
+          <Usuarios
+            usuarios={usuarios}
+            onAdd={handleAddUsuario}
+            onUpdate={handleUpdateUsuario}
+            onDelete={handleDeleteUsuario}
+            currentUserId={user.id}
+          />
+        );
       default:
-        return <DashboardHome 
-          stats={{
-            pacientes: pacientes.length,
-            medicos: medicos.length,
-            enfermeiros: enfermeiros.length,
-            medicamentos: medicamentos.length,
-            consultas: historico.length
-          }}
-        />;
+        return (
+          <DashboardHome
+            stats={{
+              pacientes: pacientes.length,
+              medicos: medicos.length,
+              enfermeiros: enfermeiros.length,
+              medicamentos: medicamentos.length,
+              consultas: historico.length
+            }}
+            historico={historico}
+          />
+        );
     }
   };
 

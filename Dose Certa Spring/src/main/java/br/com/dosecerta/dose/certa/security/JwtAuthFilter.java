@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -33,16 +34,27 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
-            String login = jwtService.getLogin(token);
+            try {
+                String login = jwtService.getLogin(token);
+                String perfil = jwtService.getPerfil(token);
 
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(login, null, List.of());
+                // Popula a authority com o perfil do token (ex: "ADMIN", "MEDICO")
+                List<SimpleGrantedAuthority> authorities = List.of(
+                        new SimpleGrantedAuthority(perfil != null ? perfil : "")
+                );
 
-            authentication.setDetails(
-                    new WebAuthenticationDetailsSource().buildDetails(request)
-            );
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(login, null, authorities);
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                authentication.setDetails(
+                        new WebAuthenticationDetailsSource().buildDetails(request)
+                );
+
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            } catch (Exception e) {
+                // Token inválido/expirado — deixa seguir sem autenticação
+                // O framework vai retornar 401 se o endpoint exigir autenticação
+            }
         }
 
         filterChain.doFilter(request, response);
