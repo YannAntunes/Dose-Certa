@@ -46,7 +46,7 @@ export default function Consulta({
   const [jaFoiSalva, setJaFoiSalva] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   // Preencher campos quando `initialData` é fornecido pelo Histórico
   useEffect(() => {
@@ -83,52 +83,62 @@ export default function Consulta({
   const calcularDose = () => {
     if (!pacienteSelecionado || !medicamentoSelecionado) return;
 
-    const dose = parseFloat(medicamentoSelecionado.dosePorKg || '0');
-    const peso = pacienteSelecionado.peso;
+    // FIX C-01: campos agora são number (não string), sem parseFloat necessário
+    const dose = medicamentoSelecionado.dosePorKg;   // number
+    const peso = pacienteSelecionado.peso;            // number
     let calculoFinal = 0;
     let unidade = '';
     let formula = '';
+    const isEn = language === 'en';
 
     switch (tipoCalculo) {
       case 'dose':
         calculoFinal = dose * peso;
         unidade = 'mg';
-        formula = `Dose = Dosagem × Peso = ${dose} mg/kg × ${peso} kg = ${calculoFinal.toFixed(2)} mg`;
+        formula = `${isEn ? 'Dose' : 'Dose'} = ${dose} mg/kg × ${peso} kg = ${calculoFinal.toFixed(2)} mg`;
         break;
       case 'volume': {
-        const doseDisp = parseFloat(medicamentoSelecionado.doseDisponivel || '0');
-        const volDisp = parseFloat(medicamentoSelecionado.volumeDisponivel || '0');
+        // FIX C-01: doseDisponivel e volumeDisponivel (nomes corretos)
+        const doseDisp = medicamentoSelecionado.doseDisponivel;   // number
+        const volDisp = medicamentoSelecionado.volumeDisponivel;  // number
         if (doseDisp > 0 && volDisp > 0) {
           const concentracao = doseDisp / volDisp;
           calculoFinal = (dose * peso) / concentracao;
         } else {
+          toast.error(isEn
+            ? 'Medication is missing dose/volume data for this calculation type.'
+            : 'Medicamento sem dados de dose/volume para este tipo de cálculo.');
           calculoFinal = 0;
         }
         unidade = 'mL/h';
-        formula = `Volume = (DoseDiaria) / Concentracao = (${dose * peso} mg) / (${doseDisp}/${volDisp} mg/mL) = ${calculoFinal.toFixed(2)} mL/h`;
+        formula = `Volume = (${dose * peso} mg) / (${doseDisp}/${volDisp} mg/mL) = ${calculoFinal.toFixed(2)} mL/h`;
         break;
       }
       case 'gotas': {
-        const doseDisp = parseFloat(medicamentoSelecionado.doseDisponivel || '0');
-        const volDisp = parseFloat(medicamentoSelecionado.volumeDisponivel || '0');
-        const fator = parseFloat(medicamentoSelecionado.fatorGotejamento || '0');
-        const tempo = parseFloat(medicamentoSelecionado.tempoMinutos || '0');
+        // FIX C-01: fatorGotejamento e tempoMinutos (nomes corretos)
+        const doseDisp = medicamentoSelecionado.doseDisponivel;    // number
+        const volDisp = medicamentoSelecionado.volumeDisponivel;   // number
+        const fator = medicamentoSelecionado.fatorGotejamento;     // number
+        const tempo = medicamentoSelecionado.tempoMinutos;         // number
         
-        let volumeMl = 0;
-        if (doseDisp > 0 && volDisp > 0) {
-          const concentracao = doseDisp / volDisp;
-          volumeMl = (dose * peso) / concentracao;
+        // FIX C-05: prevenção de divisão por zero no frontend também
+        if (tempo <= 0 || fator <= 0 || doseDisp <= 0 || volDisp <= 0) {
+          toast.error(isEn
+            ? 'Medication is missing infusion time/factor data for drip calculation.'
+            : 'Medicamento sem dados de tempo/fator para cálculo de gotas.');
+          calculoFinal = 0;
+          unidade = 'gotas/min';
+          formula = 'Dados insuficientes para o cálculo de gotas.';
+          break;
         }
 
-        if (tempo > 0) {
-          calculoFinal = (volumeMl * fator) / tempo;
-        } else {
-          calculoFinal = 0;
-        }
-        unidade = t('common.status') === 'Status' ? 'drops/min' : 'gotas/min';
-        formula = t('common.status') === 'Status' 
-          ? `Drops/min = (Volume × Factor) / Time = (${volumeMl.toFixed(2)} mL × ${fator} drops/mL) / ${tempo} min = ${calculoFinal.toFixed(2)} drops/min`
-          : `Gotas/min = (Volume × Fator) / Tempo = (${volumeMl.toFixed(2)} mL × ${fator} gotas/mL) / ${tempo} min = ${calculoFinal.toFixed(2)} gotas/min`;
+        const concentracao = doseDisp / volDisp;
+        const volumeMl = (dose * peso) / concentracao;
+        calculoFinal = (volumeMl * fator) / tempo;
+        unidade = isEn ? 'drops/min' : 'gotas/min';
+        formula = isEn
+          ? `Drops/min = (${volumeMl.toFixed(2)} mL × ${fator} drops/mL) / ${tempo} min = ${calculoFinal.toFixed(2)} drops/min`
+          : `Gotas/min = (${volumeMl.toFixed(2)} mL × ${fator} gotas/mL) / ${tempo} min = ${calculoFinal.toFixed(2)} gotas/min`;
         break;
       }
     }
@@ -146,14 +156,14 @@ export default function Consulta({
     setJaFoiSalva(false);
 
     const nomeMed = medicamentoSelecionado.nome || '-';
-    const marcaMed = medicamentoSelecionado.marca && medicamentoSelecionado.marca !== 'undefined'
-      ? medicamentoSelecionado.marca
+    const marcaMed = medicamentoSelecionado.brand && medicamentoSelecionado.brand !== 'undefined'
+      ? medicamentoSelecionado.brand
       : '';
     const notasMed = medicamentoSelecionado.notas && medicamentoSelecionado.notas !== 'undefined'
       ? medicamentoSelecionado.notas
       : '';
 
-    const isEn = t('common.status') === 'Status';
+    // isEn já declarado no início da função calcularDose
     const prescricaoTexto = `${isEn ? 'MEDICAL PRESCRIPTION' : 'PRESCRIÇÃO MÉDICA'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -186,12 +196,20 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
 
   // ─── Salvar no histórico via API ────────────────────────────────────────────
   const handleSalvar = async () => {
+    const isEn = language === 'en';
     if (!resultado) {
-      toast.warning(t('common.status') === 'Status' ? 'Generate calculation before saving.' : 'Gere o cálculo antes de salvar.');
+      toast.warning(isEn ? 'Generate calculation before saving.' : 'Gere o cálculo antes de salvar.');
+      return;
+    }
+    // FIX M-06: valida profissionalId no momento do salvamento (não apenas no cálculo)
+    if (!profissionalId) {
+      toast.error(isEn ? 'Select a professional before saving.' : 'Selecione um profissional antes de salvar.');
       return;
     }
     if (jaFoiSalva) {
-      toast.info(t('common.status') === 'Status' ? 'ℹ️ This consultation has already been saved. Modify data and recalculate to save again.' : 'ℹ️ Esta consulta já foi salva. Modifique algum dado e recalcule para salvar novamente.');
+      toast.info(isEn
+        ? 'ℹ️ This consultation has already been saved. Modify data and recalculate to save again.'
+        : 'ℹ️ Esta consulta já foi salva. Modifique algum dado e recalcule para salvar novamente.');
       return;
     }
 
@@ -206,9 +224,9 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
         observacoes: prescricao,
       });
       setJaFoiSalva(true);
-      toast.success(t('common.status') === 'Status' ? '✅ Consultation saved to history successfully!' : '✅ Atendimento salvo no histórico com sucesso!');
-    } catch {
-      toast.error(t('common.status') === 'Status' ? 'Error saving consultation. Check server connection.' : 'Erro ao salvar consulta. Verifique a conexão com o servidor.');
+      toast.success(isEn ? '✅ Consultation saved to history successfully!' : '✅ Atendimento salvo no histórico com sucesso!');
+    } catch (err: any) {
+      toast.error(err?.message || (isEn ? 'Error saving consultation. Check server connection.' : 'Erro ao salvar consulta. Verifique a conexão com o servidor.'));
     } finally {
       setSalvando(false);
     }

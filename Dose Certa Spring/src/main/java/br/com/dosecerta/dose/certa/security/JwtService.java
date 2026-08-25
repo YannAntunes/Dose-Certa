@@ -3,6 +3,7 @@ package br.com.dosecerta.dose.certa.security;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +18,22 @@ public class JwtService {
 
     @Value("${jwt.expiration}")
     private Long expiration;
+
+    /**
+     * FIX C-04: Valida que o secret tem pelo menos 32 bytes (256 bits)
+     * para garantir segurança mínima do HS256.
+     */
+    @PostConstruct
+    public void validateSecret() {
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException(
+                "ERRO DE CONFIGURAÇÃO: jwt.secret deve ter pelo menos 32 caracteres (256 bits). " +
+                "Chave atual tem apenas " + keyBytes.length + " bytes. " +
+                "Configure uma chave segura no arquivo application.properties ou variável de ambiente JWT_SECRET."
+            );
+        }
+    }
 
     public String gerarToken(String login, String perfil) {
         return Jwts.builder()

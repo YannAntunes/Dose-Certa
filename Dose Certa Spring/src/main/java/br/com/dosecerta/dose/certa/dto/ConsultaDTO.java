@@ -5,10 +5,17 @@ import br.com.dosecerta.dose.certa.entity.TipoCalculo;
 
 import java.time.LocalDateTime;
 
+/**
+ * FIX B-04: Inclui pacienteId e medicamentoId no DTO de resposta.
+ * Isso permite ao frontend "reabrir" um atendimento usando IDs em vez
+ * de buscar por nome (que pode duplicar em caso de nomes iguais).
+ */
 public class ConsultaDTO {
 
     private Long id;
+    private Long pacienteId;       // FIX B-04
     private String paciente;
+    private Long medicamentoId;    // FIX B-04
     private String medicamento;
     private String profissional;
     private String tipoProfissional;   // "medico" | "enfermeiro"
@@ -22,7 +29,9 @@ public class ConsultaDTO {
 
     public ConsultaDTO(Consulta consulta) {
         this.id           = consulta.getId();
+        this.pacienteId   = consulta.getPaciente().getId();   // FIX B-04
         this.paciente     = consulta.getPaciente().getNome();
+        this.medicamentoId = consulta.getMedicamento().getId(); // FIX B-04
         this.medicamento  = consulta.getMedicamento().getNome();
         this.tipoCalculo  = consulta.getTipoCalculo();
         this.resultado    = consulta.getResultadoCalculo();
@@ -45,7 +54,9 @@ public class ConsultaDTO {
     }
 
     public Long getId()                    { return id; }
+    public Long getPacienteId()            { return pacienteId; }
     public String getPaciente()            { return paciente; }
+    public Long getMedicamentoId()         { return medicamentoId; }
     public String getMedicamento()         { return medicamento; }
     public String getProfissional()        { return profissional; }
     public String getTipoProfissional()    { return tipoProfissional; }

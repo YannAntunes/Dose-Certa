@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import DashboardHome from './components/DashboardHome';
@@ -36,6 +37,7 @@ interface User {
 }
 
 function App() {
+  const { t } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState('dashboard');
 
@@ -291,22 +293,38 @@ function App() {
   };
 
   // Handlers de usuários
+  // FIX M-04: try/catch adicionado para evitar erros não tratados
   const handleAddUsuario = async (u: UsuarioRequest) => {
-    const created = await usuarioService.criar(u);
-    setUsuarios(prev => [...prev, created]);
-    toast.success((t('common.status') === 'Status' ? 'User "' : 'Usuário "') + created.login + (t('common.status') === 'Status' ? '" created successfully!' : '" criado com sucesso!'));
+    try {
+      const created = await usuarioService.criar(u);
+      setUsuarios(prev => [...prev, created]);
+      toast.success(`Usuário "${created.login}" criado com sucesso!`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao criar usuário.');
+      throw err; // repassa para o formulário exibir o erro inline
+    }
   };
 
   const handleUpdateUsuario = async (id: number, u: UsuarioRequest) => {
-    const updated = await usuarioService.atualizar(id, u);
-    setUsuarios(prev => prev.map(usr => usr.id === id ? updated : usr));
-    toast.success((t('common.status') === 'Status' ? 'User "' : 'Usuário "') + updated.login + (t('common.status') === 'Status' ? '" updated successfully!' : '" atualizado com sucesso!'));
+    try {
+      const updated = await usuarioService.atualizar(id, u);
+      setUsuarios(prev => prev.map(usr => usr.id === id ? updated : usr));
+      toast.success(`Usuário "${updated.login}" atualizado com sucesso!`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao atualizar usuário.');
+      throw err;
+    }
   };
 
   const handleDeleteUsuario = async (id: number) => {
-    await usuarioService.deletar(id);
-    setUsuarios(prev => prev.filter(usr => usr.id !== id));
-    toast.success(t('common.status') === 'Status' ? 'User deleted successfully!' : 'Usuário excluído com sucesso!');
+    try {
+      await usuarioService.deletar(id);
+      setUsuarios(prev => prev.filter(usr => usr.id !== id));
+      toast.success('Usuário excluído com sucesso!');
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao excluir usuário.');
+      throw err;
+    }
   };
 
   if (!user) {

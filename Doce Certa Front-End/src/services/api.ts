@@ -1,13 +1,9 @@
 // Configuração base da API
 const API_BASE_URL = 'http://localhost:8080';
 
-// Tipos genéricos de resposta
-export interface ApiResponse<T> {
-  data: T;
-  status: number;
-}
-
+// ──────────────────────────────────────────────────────────────────────────────
 // Função auxiliar para fazer requisições
+// ──────────────────────────────────────────────────────────────────────────────
 async function makeRequest<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -38,8 +34,9 @@ async function makeRequest<T>(
       window.location.reload();
       throw new Error('Sessão expirada. Faça login novamente.');
     }
+    // FIX M-01: tenta parsear campo 'message' do ErrorResponseDTO do backend
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || `Request failed with status ${response.status}`);
+    throw new Error(error.message || error.mensagem || `Erro ${response.status}`);
   }
 
   // Se o status for 204 No Content, não tente parsear JSON (como no DELETE)
@@ -50,7 +47,9 @@ async function makeRequest<T>(
   return response.json();
 }
 
-// ========== AUTENTICAÇÃO ==========
+// ══════════════════════════════════════════════════════════════════════════════
+// AUTENTICAÇÃO
+// ══════════════════════════════════════════════════════════════════════════════
 export interface LoginRequest {
   login: string;
   senha: string;
@@ -70,7 +69,6 @@ export const authService = {
       body: JSON.stringify({ login, senha }),
     });
     
-    // Salvar token no localStorage
     if (response.token) {
       localStorage.setItem('token', response.token);
     }
@@ -85,13 +83,17 @@ export const authService = {
   getToken: () => localStorage.getItem('token'),
 };
 
-// ========== PACIENTES ==========
+// ══════════════════════════════════════════════════════════════════════════════
+// PACIENTES
+// ══════════════════════════════════════════════════════════════════════════════
 export interface Paciente {
   id: number;
   nome: string;
   cpf: string;
   idade: number;
   peso: number;
+  tipoDocumento?: string;
+  paisOrigem?: string;
 }
 
 export const pacienteService = {
@@ -120,7 +122,9 @@ export const pacienteService = {
   },
 };
 
-// ========== MÉDICOS ==========
+// ══════════════════════════════════════════════════════════════════════════════
+// MÉDICOS
+// ══════════════════════════════════════════════════════════════════════════════
 export interface Medico {
   id: number;
   nome: string;
@@ -154,7 +158,9 @@ export const medicoService = {
   },
 };
 
-// ========== ENFERMEIROS ==========
+// ══════════════════════════════════════════════════════════════════════════════
+// ENFERMEIROS
+// ══════════════════════════════════════════════════════════════════════════════
 export interface Enfermeiro {
   id: number;
   nome: string;
@@ -188,18 +194,26 @@ export const enfermeiroService = {
   },
 };
 
-// ========== MEDICAMENTOS ==========
+// ══════════════════════════════════════════════════════════════════════════════
+// MEDICAMENTOS
+// FIX C-01 / M-01: Tipos e nomes dos campos alinhados 100% com o backend Java.
+//   - Campos numéricos agora são number (não string)
+//   - Nomes agora correspondem ao MedicamentoResponseDTO:
+//     dosePorKg, doseMaxima, doseDisponivel, volumeDisponivel, fatorGotejamento, tempoMinutos
+// ══════════════════════════════════════════════════════════════════════════════
 export interface Medicamento {
   id: number;
   nome: string;
-  marca: string;
-  dosePorKg: string;
-  doseMaxima: string;
+  brand: string;          // equivale a "marca" — campo do backend é "brand"
+  dosePorKg: number;      // FIX: era string, era acessado como "dosePorKg" ✓
+  doseMaxima: number;     // FIX: era string
+  doseDisponivel: number; // FIX: era "volumeMl" (nome errado)
+  volumeDisponivel: number; // FIX: era "volumeMl" (nome errado)
+  fatorGotejamento: number; // FIX: era "fatorGotas" e string
+  tempoMinutos: number;   // FIX: era "tempoMin" e string
   intervalo: string;
   notas: string;
-  volumeMl: string;
-  tempoMin: string;
-  fatorGotas: string;
+  tipoPadrao?: string;
 }
 
 export const medicamentoService = {
@@ -228,7 +242,9 @@ export const medicamentoService = {
   },
 };
 
-// ========== CONSULTAS (salvar no banco) ==========
+// ══════════════════════════════════════════════════════════════════════════════
+// CONSULTAS (salvar no banco)
+// ══════════════════════════════════════════════════════════════════════════════
 export interface ConsultaRequest {
   pacienteId: number;
   medicamentoId: number;
@@ -247,26 +263,32 @@ export const consultaService = {
   },
 };
 
-// ========== HISTÓRICO ==========
+// ══════════════════════════════════════════════════════════════════════════════
+// HISTÓRICO
+// FIX B-04: Adicionados pacienteId e medicamentoId ao tipo Historico.
+// ══════════════════════════════════════════════════════════════════════════════
 export interface Historico {
   id: number;
-  data: string;          // ISO string vindo de dataHora
+  data: string;            // ISO string vindo de dataHora
+  pacienteId?: number;     // FIX B-04: permite reabrir por ID
   paciente: string;
+  medicamentoId?: number;  // FIX B-04: permite reabrir por ID
   profissional: string;
   tipoProfissional: string;
   medicamento: string;
-  resultado: string;     // "valor unidade"
+  resultado: string;       // "valor unidade"
   observacoes?: string;
 }
 
 export const historicoService = {
   listar: async (): Promise<Historico[]> => {
-    // O backend retorna ConsultaDTO[], mapeamos para o formato que o frontend espera
     const raw: any[] = await makeRequest<any[]>('/historico');
     return raw.map(c => ({
       id: c.id,
       data: c.dataHora,
+      pacienteId: c.pacienteId,   // FIX B-04
       paciente: c.paciente,
+      medicamentoId: c.medicamentoId, // FIX B-04
       profissional: c.profissional,
       tipoProfissional: c.tipoProfissional,
       medicamento: c.medicamento,
@@ -276,7 +298,9 @@ export const historicoService = {
   },
 };
 
-// ========== USUÁRIOS ==========
+// ══════════════════════════════════════════════════════════════════════════════
+// USUÁRIOS
+// ══════════════════════════════════════════════════════════════════════════════
 export type PerfilUsuario = 'ADMIN' | 'MEDICO' | 'ENFERMEIRO' | 'RECEPCAO';
 
 export interface Usuario {

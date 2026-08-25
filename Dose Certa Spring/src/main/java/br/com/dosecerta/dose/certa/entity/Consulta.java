@@ -42,9 +42,9 @@ public class Consulta {
     private String observacoes;
 
     // 🔹 CONSTRUTOR VAZIO (OBRIGATÓRIO PARA JPA)
-    public Consulta() {
-        this.dataHora = LocalDateTime.now();
-    }
+    // FIX B-07: dataHora não é mais inicializado aqui para evitar dupla inicialização.
+    // O ConsultaService define o valor correto via setDataHora().
+    public Consulta() {}
 
     // 🔹 GETTERS E SETTERS
 

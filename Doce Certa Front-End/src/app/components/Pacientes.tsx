@@ -43,7 +43,7 @@ export default function Pacientes({ pacientes, onAddPaciente, onUpdatePaciente, 
   const [peso, setPeso] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   // Estado de edição inline
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -98,10 +98,17 @@ export default function Pacientes({ pacientes, onAddPaciente, onUpdatePaciente, 
     setDeletingId(null);
   };
 
-  const filteredPacientes = pacientes.filter(p =>
-    p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.cpf.includes(searchTerm)
-  );
+  // FIX I-09: Normaliza string para busca sem sensibilidade a acentos
+  const normalizar = (s: string) =>
+    s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+  const filteredPacientes = pacientes.filter(p => {
+    const termo = normalizar(searchTerm);
+    return (
+      normalizar(p.nome).includes(termo) ||
+      (p.cpf || '').toLowerCase().includes(termo)
+    );
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -279,7 +286,9 @@ export default function Pacientes({ pacientes, onAddPaciente, onUpdatePaciente, 
                           </div>
                         </TableCell>
                         <TableCell className="text-slate-700 dark:text-slate-300">{paciente.paisOrigem || 'Brasil'}</TableCell>
-                        <TableCell className="text-slate-700 dark:text-slate-300">{paciente.idade} anos</TableCell>
+                        <TableCell className="text-slate-700 dark:text-slate-300">
+                          {paciente.idade} {language === 'en' ? 'years' : 'anos'}
+                        </TableCell>
                         <TableCell className="text-slate-700 dark:text-slate-300">{paciente.peso} kg</TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
@@ -310,7 +319,7 @@ export default function Pacientes({ pacientes, onAddPaciente, onUpdatePaciente, 
           </div>
           {pacientes.length > 0 && (
             <p className="text-sm text-gray-500 text-center mt-3">
-              {filteredPacientes.length} de {pacientes.length} paciente(s)
+              {filteredPacientes.length} {language === 'en' ? 'of' : 'de'} {pacientes.length} {language === 'en' ? 'patient(s)' : 'paciente(s)'}
             </p>
           )}
         </CardContent>

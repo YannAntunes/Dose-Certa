@@ -54,7 +54,7 @@ export default function Usuarios({
   const [loading, setLoading] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const PERFIS = getPerfis(t);
 
   const isEditing = editingId !== null;
@@ -73,10 +73,19 @@ export default function Usuarios({
   };
 
   const validate = (): string | null => {
-    if (!form.login.trim()) return t('usuarios.form.login') + ' ' + (t('common.status') === 'Status' ? 'is required' : 'é obrigatório');
+    if (!form.login.trim()) return t('usuarios.form.login') + ' é obrigatório';
     if (!form.perfil) return t('usuarios.form.role_placeholder');
-    if (!isEditing && !form.senha) return t('usuarios.form.password') + ' ' + (t('common.status') === 'Status' ? 'is required' : 'é obrigatória');
-    if (form.senha && form.senha.length < 4) return t('common.status') === 'Status' ? 'Password must have at least 4 characters' : 'A senha deve ter pelo menos 4 caracteres';
+    if (!isEditing && !form.senha) return t('usuarios.form.password') + ' é obrigatória';
+    // FIX M-05: mínimo 8 caracteres (padrão mínimo para sistemas clínicos)
+    if (form.senha && form.senha.length < 8)
+      return language === 'en'
+        ? 'Password must have at least 8 characters'
+        : 'A senha deve ter pelo menos 8 caracteres';
+    // FIX M-05: deve conter pelo menos 1 número
+    if (form.senha && !/\d/.test(form.senha))
+      return language === 'en'
+        ? 'Password must contain at least 1 number'
+        : 'A senha deve conter pelo menos 1 número';
     if (form.senha !== form.confirmSenha) return t('usuarios.error.match');
     return null;
   };

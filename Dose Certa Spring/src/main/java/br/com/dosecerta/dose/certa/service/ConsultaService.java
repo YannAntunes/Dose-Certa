@@ -7,6 +7,12 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Serviço central de cálculo e persistência de consultas.
+ * FIX C-02: DosagemService foi removido (dead code com fórmulas divergentes).
+ *           Toda lógica de cálculo está unificada aqui.
+ * FIX C-05: Divisão por zero tratada explicitamente antes de executar cálculos.
+ */
 @Service
 public class ConsultaService {
 
@@ -37,6 +43,9 @@ public class ConsultaService {
             throw new IllegalArgumentException("Informe médico ou enfermeiro");
         }
 
+        // FIX C-05: Validar campos necessários para evitar divisão por zero
+        validarCamposMedicamento(medicamento, tipoCalculo);
+
         double resultado;
         String unidade;
 
@@ -51,6 +60,7 @@ public class ConsultaService {
             }
 
             case VOLUME_MLH -> {
+                // FIX C-05: volumeDisponivel já validado como > 0 acima
                 double concentracao =
                         medicamento.getDoseDisponivel() / medicamento.getVolumeDisponivel();
 
@@ -64,6 +74,7 @@ public class ConsultaService {
                 double doseTotalMg =
                         paciente.getPeso() * medicamento.getDosePorKg();
 
+                // FIX C-05: volumeDisponivel e tempoMinutos já validados como > 0 acima
                 double concentracao =
                         medicamento.getDoseDisponivel() / medicamento.getVolumeDisponivel();
 
@@ -88,7 +99,6 @@ public class ConsultaService {
                             "A prescrição foi ajustada automaticamente para a dose segura.";
         }
 
-
         Consulta consulta = new Consulta();
         consulta.setPaciente(paciente);
         consulta.setMedicamento(medicamento);
@@ -99,10 +109,43 @@ public class ConsultaService {
         consulta.setUnidadeResultado(unidade);
         consulta.setAlertaDoseMaxima(alertaDoseMaxima);
         consulta.setMensagemAlerta(mensagemAlerta);
-        consulta.setDataHora(LocalDateTime.now());
+        consulta.setDataHora(LocalDateTime.now()); // FIX B-07: inicializado apenas uma vez aqui
         consulta.setObservacoes(observacoes);
 
         return consultaRepository.save(consulta);
+    }
+
+    /**
+     * FIX C-05: Valida todos os campos numéricos usados nos cálculos
+     * antes de executar qualquer divisão, prevenindo divisão por zero.
+     */
+    private void validarCamposMedicamento(Medicamento medicamento, TipoCalculo tipoCalculo) {
+        if (medicamento.getDosePorKg() <= 0) {
+            throw new IllegalArgumentException(
+                "O campo 'Dose por kg' do medicamento deve ser maior que zero.");
+        }
+
+        if (tipoCalculo == TipoCalculo.VOLUME_MLH || tipoCalculo == TipoCalculo.GOTAS_MIN) {
+            if (medicamento.getDoseDisponivel() <= 0) {
+                throw new IllegalArgumentException(
+                    "O campo 'Dose disponível' do medicamento deve ser maior que zero para este tipo de cálculo.");
+            }
+            if (medicamento.getVolumeDisponivel() <= 0) {
+                throw new IllegalArgumentException(
+                    "O campo 'Volume disponível' do medicamento deve ser maior que zero para este tipo de cálculo.");
+            }
+        }
+
+        if (tipoCalculo == TipoCalculo.GOTAS_MIN) {
+            if (medicamento.getFatorGotejamento() <= 0) {
+                throw new IllegalArgumentException(
+                    "O campo 'Fator de gotejamento' do medicamento deve ser maior que zero.");
+            }
+            if (medicamento.getTempoMinutos() <= 0) {
+                throw new IllegalArgumentException(
+                    "O campo 'Tempo de infusão' do medicamento deve ser maior que zero.");
+            }
+        }
     }
 
     public List<Consulta> listar() {
