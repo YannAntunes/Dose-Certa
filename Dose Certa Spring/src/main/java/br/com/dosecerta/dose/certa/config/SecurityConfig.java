@@ -41,6 +41,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/login").permitAll()
 
                         // ── USUÁRIOS: somente ADMIN ──
+                        .requestMatchers("/health/ready").permitAll()
                         .requestMatchers("/usuarios/**").hasAuthority("ADMIN")
 
                         // ── MEDICAMENTOS: leitura p/ todos, escrita p/ ADMIN e MEDICO ──
