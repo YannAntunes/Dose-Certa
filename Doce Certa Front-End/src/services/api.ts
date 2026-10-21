@@ -1,5 +1,6 @@
 // Configuração base da API
-const API_BASE_URL = 'http://localhost:8080';
+import { resolveApiBaseUrl } from './apiConfig.js';
+const API_BASE_URL = resolveApiBaseUrl(import.meta.env.VITE_API_BASE_URL, import.meta.env.DEV);
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Função auxiliar para fazer requisições
@@ -20,13 +21,15 @@ async function makeRequest<T>(
     defaultHeaders['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...defaultHeaders,
-      ...(options.headers || {}),
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers: { ...defaultHeaders, ...(options.headers || {}) },
+    });
+  } catch {
+    throw new Error('Não foi possível conectar à API (' + API_BASE_URL + '). Verifique o backend e VITE_API_BASE_URL.');
+  }
 
   if (!response.ok) {
     if (response.status === 401) {
@@ -45,6 +48,20 @@ async function makeRequest<T>(
   }
 
   return response.json();
+}
+
+export async function checkApiConnection(): Promise<{ status: string; database: string }> {
+  let response: Response;
+  try {
+    response = await fetch(API_BASE_URL + '/health/ready', { method: 'GET', headers: { Accept: 'application/json' } });
+  } catch {
+    throw new Error('Não foi possível conectar à API (' + API_BASE_URL + ').');
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || body.status !== 'UP' || body.database !== 'UP') {
+    throw new Error('A API ou a conexão com o banco de dados está indisponível.');
+  }
+  return body;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

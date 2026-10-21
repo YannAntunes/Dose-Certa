@@ -21,6 +21,7 @@ import {
   consultaService,
   usuarioService,
   authService,
+  checkApiConnection,
   Paciente,
   Medico,
   Enfermeiro,
@@ -57,20 +58,10 @@ function App() {
   const [loadingEnfermeiros, setLoadingEnfermeiros] = useState(true);
   const [loadingMedicamentos, setLoadingMedicamentos] = useState(true);
 
-  // Limpa token inválido do localStorage ao iniciar
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      fetch('http://localhost:8080/pacientes', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      }).catch(() => {
-        localStorage.removeItem('token');
-      }).then((res) => {
-        if (res && !res.ok) {
-          localStorage.removeItem('token');
-        }
-      });
-    }
+    checkApiConnection().catch((error) => {
+      console.warn('[Dose Certa] API/database unavailable:', error);
+    });
   }, []);
 
   // Carregar dados quando o usuário faz login
