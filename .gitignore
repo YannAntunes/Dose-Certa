@@ -61,3 +61,6 @@ DbProbe.class
 JwtGen.java
 JwtGen.class
 cp.txt
+
+playwright-report/
+test-results/

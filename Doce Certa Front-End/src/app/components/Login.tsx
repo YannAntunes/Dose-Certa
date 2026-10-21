@@ -19,6 +19,7 @@ export default function Login({ onLogin }: LoginProps) {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   
   const { t } = useLanguage();
+  const isFormValid = username.trim().length > 0 && password.trim().length > 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -40,14 +41,25 @@ export default function Login({ onLogin }: LoginProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername || !password.trim()) {
+      return;
+    }
+
     setError('');
     setLoading(true);
 
     try {
-      await onLogin(username, password);
+      await onLogin(trimmedUsername, password);
+      setServerStatus('online');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao fazer login';
       setError(errorMessage);
+      if (errorMessage.startsWith('Não foi possível conectar à API')) {
+        setServerStatus('offline');
+      } else {
+        setServerStatus('online');
+      }
     } finally {
       setLoading(false);
     }
@@ -138,7 +150,11 @@ export default function Login({ onLogin }: LoginProps) {
           )}
 
           {error && (
-            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800/50 p-4 rounded-xl animate-shake duration-300">
+            <div
+              role="alert"
+              data-testid="login-error"
+              className="flex items-center gap-3 text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800/50 p-4 rounded-xl animate-shake duration-300"
+            >
               <AlertCircle className="w-5 h-5 shrink-0" />
               <span className="text-sm font-medium">{error}</span>
             </div>
@@ -147,7 +163,7 @@ export default function Login({ onLogin }: LoginProps) {
           <Button
             type="submit"
             className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-6 rounded-xl shadow-lg shadow-blue-500/25 transition-all active:scale-95 disabled:opacity-70"
-            disabled={loading || serverStatus === 'offline'}
+            disabled={loading || !isFormValid}
           >
             {loading ? (
               <>
@@ -161,7 +177,10 @@ export default function Login({ onLogin }: LoginProps) {
         </form>
 
         {/* Status do servidor */}
-        <div className="mt-8 p-3 bg-slate-50/50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-center gap-3">
+        <div
+          data-testid="server-status"
+          className="mt-8 p-3 bg-slate-50/50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-center gap-3"
+        >
           {serverStatus === 'checking' && (
             <>
               <Loader2 className="w-4 h-4 animate-spin text-slate-400" />

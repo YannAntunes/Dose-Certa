@@ -24,7 +24,7 @@ public class BootstrapAdminRunner implements ApplicationRunner {
         if (!enabled) return;
         if (repo.count()>0) { log.info("Bootstrap admin skipped: users already exist."); return; }
         if (login==null || login.isBlank()) throw new IllegalStateException("APP_BOOTSTRAP_ADMIN_LOGIN is required.");
-        if (password==null || password.length()<16) throw new IllegalStateException("APP_BOOTSTRAP_ADMIN_PASSWORD must contain at least 16 characters.");
+        if (password==null || password.length()<12) throw new IllegalStateException("APP_BOOTSTRAP_ADMIN_PASSWORD must contain at least 12 characters.");
         Usuario admin=new Usuario(); admin.setLogin(login.trim()); admin.setSenha(encoder.encode(password)); admin.setPerfil(PerfilUsuario.ADMIN);
         repo.save(admin); log.warn("Initial administrator created. Disable bootstrap and remove credentials from Render now.");
     }

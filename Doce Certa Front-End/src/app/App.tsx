@@ -21,7 +21,6 @@ import {
   consultaService,
   usuarioService,
   authService,
-  checkApiConnection,
   Paciente,
   Medico,
   Enfermeiro,
@@ -57,12 +56,6 @@ function App() {
   const [loadingMedicos, setLoadingMedicos] = useState(true);
   const [loadingEnfermeiros, setLoadingEnfermeiros] = useState(true);
   const [loadingMedicamentos, setLoadingMedicamentos] = useState(true);
-
-  useEffect(() => {
-    checkApiConnection().catch((error) => {
-      console.warn('[Dose Certa] API/database unavailable:', error);
-    });
-  }, []);
 
   // Carregar dados quando o usuário faz login
   useEffect(() => {
@@ -128,6 +121,7 @@ function App() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao fazer login';
       toast.error(errorMessage);
+      throw error instanceof Error ? error : new Error(errorMessage);
     }
   };
 
@@ -319,7 +313,12 @@ function App() {
   };
 
   if (!user) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <>
+        <Login onLogin={handleLogin} />
+        <Toaster position="top-right" />
+      </>
+    );
   }
 
   const renderPage = () => {

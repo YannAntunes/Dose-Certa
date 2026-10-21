@@ -26,20 +26,21 @@ async function makeRequest<T>(
     response = await fetch(url, {
       ...options,
       headers: { ...defaultHeaders, ...(options.headers || {}) },
+      signal: options.signal ?? AbortSignal.timeout(15000),
     });
   } catch {
     throw new Error('Não foi possível conectar à API (' + API_BASE_URL + '). Verifique o backend e VITE_API_BASE_URL.');
   }
 
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 && endpoint !== '/login') {
       localStorage.removeItem('token');
       window.location.reload();
       throw new Error('Sessão expirada. Faça login novamente.');
     }
     // FIX M-01: tenta parsear campo 'message' do ErrorResponseDTO do backend
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || error.mensagem || `Erro ${response.status}`);
+    throw new Error(error.message || error.mensagem || (response.status === 401 ? 'Credenciais inválidas.' : `Erro ${response.status}`));
   }
 
   // Se o status for 204 No Content, não tente parsear JSON (como no DELETE)
@@ -53,7 +54,11 @@ async function makeRequest<T>(
 export async function checkApiConnection(): Promise<{ status: string; database: string }> {
   let response: Response;
   try {
-    response = await fetch(API_BASE_URL + '/health/ready', { method: 'GET', headers: { Accept: 'application/json' } });
+    response = await fetch(API_BASE_URL + '/health/ready', {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
   } catch {
     throw new Error('Não foi possível conectar à API (' + API_BASE_URL + ').');
   }
