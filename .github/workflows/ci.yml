@@ -34,5 +34,5 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: maven
-      - run: ./mvnw -B -ntp test '-Dspring.profiles.active=test'
+      - run: bash ./mvnw -B -ntp test '-Dspring.profiles.active=test'
         working-directory: Dose Certa Spring
