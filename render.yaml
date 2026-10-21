@@ -6,26 +6,18 @@ services:
     plan: free
     healthCheckPath: /health/ready
     envVars:
+      # Copy these values from Supabase > Connect > Session Pooler.
+      # Keep all credentials private and configure them in Render, never in Git.
       - key: PGHOST
-        fromDatabase:
-          name: dose-certa-db
-          property: host
+        sync: false
       - key: PGPORT
-        fromDatabase:
-          name: dose-certa-db
-          property: port
+        sync: false
       - key: PGDATABASE
-        fromDatabase:
-          name: dose-certa-db
-          property: database
+        sync: false
       - key: SPRING_DATASOURCE_USERNAME
-        fromDatabase:
-          name: dose-certa-db
-          property: user
+        sync: false
       - key: SPRING_DATASOURCE_PASSWORD
-        fromDatabase:
-          name: dose-certa-db
-          property: password
+        sync: false
       - key: SPRING_PROFILES_ACTIVE
         value: prod
       - key: JWT_SECRET
@@ -38,7 +30,3 @@ services:
         sync: false
       - key: APP_BOOTSTRAP_ADMIN_PASSWORD
         sync: false
-
-databases:
-  - name: dose-certa-db
-    plan: free
