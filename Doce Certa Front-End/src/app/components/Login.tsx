@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { checkApiConnection } from '../../services/api';
 
 interface LoginProps {
   onLogin: (username: string, password: string) => Promise<void>;
@@ -20,15 +21,21 @@ export default function Login({ onLogin }: LoginProps) {
   const { t } = useLanguage();
 
   useEffect(() => {
-    const checkServer = async () => {
-      try {
-        await fetch('http://localhost:8080/login', { method: 'OPTIONS' });
-        setServerStatus('online');
-      } catch {
-        setServerStatus('offline');
-      }
+    let cancelled = false;
+
+    checkApiConnection()
+      .then((health) => {
+        if (!cancelled) {
+          setServerStatus(health.status === 'UP' && health.database === 'UP' ? 'online' : 'offline');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setServerStatus('offline');
+      });
+
+    return () => {
+      cancelled = true;
     };
-    checkServer();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
