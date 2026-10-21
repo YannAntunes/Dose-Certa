@@ -11,6 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest @AutoConfigureMockMvc @ActiveProfiles("test")
 class HealthControllerTest {
  @Autowired private MockMvc mockMvc;
+ @Test void rootLivenessIsPublicForExistingRenderHealthCheck() throws Exception {
+  mockMvc.perform(get("/")).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("UP"));
+ }
  @Test void readinessChecksDatabase() throws Exception {
   mockMvc.perform(get("/health/ready")).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("UP")).andExpect(jsonPath("$.database").value("UP"));
  }
