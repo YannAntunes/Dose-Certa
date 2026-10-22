@@ -1,7 +1,9 @@
 package br.com.dosecerta.dose.certa.service;
 
+import br.com.dosecerta.dose.certa.controller.ContaInativaException;
 import br.com.dosecerta.dose.certa.dto.LoginResponseDTO;
 import br.com.dosecerta.dose.certa.entity.PerfilUsuario;
+import br.com.dosecerta.dose.certa.entity.StatusUsuario;
 import br.com.dosecerta.dose.certa.entity.Usuario;
 import br.com.dosecerta.dose.certa.repository.UsuarioRepository;
 import br.com.dosecerta.dose.certa.security.JwtService;
@@ -21,10 +23,10 @@ import static org.mockito.Mockito.*;
 
 /**
  * Testes unitários do AuthService.
- * Cobre: login válido, usuário não encontrado, senha inválida.
+ * Cobre: login válido, usuário não encontrado, senha inválida, e bloqueio de contas PENDENTE, REJEITADO e INATIVO.
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("AuthService — Testes de Autenticação")
+@DisplayName("AuthService — Testes de Autenticação e Status de Conta")
 class AuthServiceTest {
 
     @Mock
@@ -47,10 +49,11 @@ class AuthServiceTest {
         usuario.setLogin("admin");
         usuario.setSenha("hashed_password_aqui");
         usuario.setPerfil(PerfilUsuario.ADMIN);
+        usuario.setStatus(StatusUsuario.ATIVO);
     }
 
     @Test
-    @DisplayName("autenticar: deve retornar LoginResponseDTO com token para credenciais válidas")
+    @DisplayName("autenticar: deve retornar LoginResponseDTO com token para credenciais válidas e conta ATIVA")
     void autenticar_credenciaisValidas_retornaToken() {
         when(repository.findByLogin("admin")).thenReturn(Optional.of(usuario));
         when(passwordEncoder.matches("senha123", "hashed_password_aqui")).thenReturn(true);
@@ -67,6 +70,7 @@ class AuthServiceTest {
     @DisplayName("autenticar: deve lançar exceção para usuário inexistente")
     void autenticar_usuarioInexistente_lancaExcecao() {
         when(repository.findByLogin("inexistente")).thenReturn(Optional.empty());
+        when(repository.findByLoginIgnoreCase("inexistente")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.autenticar("inexistente", "qualquer"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -85,16 +89,49 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("autenticar: não deve revelar se é usuário ou senha o que está errado (mensagem genérica)")
+    @DisplayName("autenticar: deve bloquear login de usuário com status PENDENTE")
+    void autenticar_usuarioPendente_bloqueiaLogin() {
+        usuario.setStatus(StatusUsuario.PENDENTE);
+        when(repository.findByLogin("admin")).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches("senha123", "hashed_password_aqui")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.autenticar("admin", "senha123"))
+                .isInstanceOf(ContaInativaException.class)
+                .hasMessageContaining("pendente de aprovação");
+    }
+
+    @Test
+    @DisplayName("autenticar: deve bloquear login de usuário com status REJEITADO")
+    void autenticar_usuarioRejeitado_bloqueiaLogin() {
+        usuario.setStatus(StatusUsuario.REJEITADO);
+        when(repository.findByLogin("admin")).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches("senha123", "hashed_password_aqui")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.autenticar("admin", "senha123"))
+                .isInstanceOf(ContaInativaException.class)
+                .hasMessageContaining("rejeitada");
+    }
+
+    @Test
+    @DisplayName("autenticar: deve bloquear login de usuário com status INATIVO")
+    void autenticar_usuarioInativo_bloqueiaLogin() {
+        usuario.setStatus(StatusUsuario.INATIVO);
+        when(repository.findByLogin("admin")).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches("senha123", "hashed_password_aqui")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.autenticar("admin", "senha123"))
+                .isInstanceOf(ContaInativaException.class)
+                .hasMessageContaining("inativo");
+    }
+
+    @Test
+    @DisplayName("autenticar: não deve revelar detalhes internos na mensagem de erro")
     void autenticar_mensagemErro_naoRevealCredencials() {
-        // Garante que ambos os erros têm mensagens distintas (conforme implementação atual)
-        // Para hardening real, unificar em mensagem única "Credenciais inválidas"
         when(repository.findByLogin("admin")).thenReturn(Optional.of(usuario));
         when(passwordEncoder.matches("errado", "hashed_password_aqui")).thenReturn(false);
 
         Throwable thrown = catchThrowable(() -> authService.autenticar("admin", "errado"));
         assertThat(thrown).isInstanceOf(IllegalArgumentException.class);
-        // O erro não deve retornar stack trace ou informações de implementação
         assertThat(thrown.getMessage()).doesNotContain("Exception");
         assertThat(thrown.getMessage()).doesNotContain("null");
     }

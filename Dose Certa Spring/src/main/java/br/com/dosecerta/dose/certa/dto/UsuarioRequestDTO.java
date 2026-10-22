@@ -1,12 +1,14 @@
 package br.com.dosecerta.dose.certa.dto;
 
 import br.com.dosecerta.dose.certa.entity.PerfilUsuario;
+import br.com.dosecerta.dose.certa.entity.StatusUsuario;
 
 public class UsuarioRequestDTO {
 
     private String login;
     private String senha;
     private PerfilUsuario perfil;
+    private StatusUsuario status;
 
     public String getLogin() { return login; }
     public void setLogin(String login) { this.login = login; }
@@ -16,4 +18,7 @@ public class UsuarioRequestDTO {
 
     public PerfilUsuario getPerfil() { return perfil; }
     public void setPerfil(PerfilUsuario perfil) { this.perfil = perfil; }
+
+    public StatusUsuario getStatus() { return status; }
+    public void setStatus(StatusUsuario status) { this.status = status; }
 }

@@ -28,6 +28,34 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
 
+    // 🔴 Conta pendente, inativa ou rejeitada
+    @ExceptionHandler(ContaInativaException.class)
+    public ResponseEntity<ErrorResponseDTO> handleContaInativa(
+            ContaInativaException ex
+    ) {
+        ErrorResponseDTO error = new ErrorResponseDTO(
+                HttpStatus.FORBIDDEN.value(),
+                "CONTA_INATIVA",
+                ex.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    // 🔴 Proteção contra abuso / rate limit
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponseDTO> handleRateLimit(
+            RateLimitExceededException ex
+    ) {
+        ErrorResponseDTO error = new ErrorResponseDTO(
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                "LIMITE_EXCEDIDO",
+                ex.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(error);
+    }
+
     // 🔴 Erro genérico inesperado
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDTO> handleGeneric(Exception ex) {

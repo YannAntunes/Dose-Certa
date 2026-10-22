@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { toast } from 'sonner';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { SyncBadge } from './SyncStatusBar';
+import type { SyncStatus } from '../../services/offlineDb';
 
 interface Paciente {
   id: number;
@@ -16,6 +18,8 @@ interface Paciente {
   peso: number;
   tipoDocumento?: string;
   paisOrigem?: string;
+  _syncStatus?: SyncStatus;
+  _syncError?: string;
 }
 
 interface PacientesProps {
@@ -278,7 +282,12 @@ export default function Pacientes({ pacientes, onAddPaciente, onUpdatePaciente, 
                     ) : (
                       /* ── Linha normal ── */
                       <TableRow key={paciente.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 border-slate-200 dark:border-slate-800">
-                        <TableCell className="font-medium text-slate-800 dark:text-slate-200">{paciente.nome}</TableCell>
+                        <TableCell className="font-medium text-slate-800 dark:text-slate-200">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span>{paciente.nome}</span>
+                            <SyncBadge status={paciente._syncStatus} errorMessage={paciente._syncError} />
+                          </div>
+                        </TableCell>
                         <TableCell className="font-mono text-sm text-slate-700 dark:text-slate-300">
                           <div className="flex flex-col">
                             <span>{paciente.cpf}</span>

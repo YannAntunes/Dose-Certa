@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Calculator, FileText, Save, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Calculator, FileText, Save, Trash2, AlertTriangle, ShieldCheck, Clock } from 'lucide-react';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -8,13 +8,17 @@ import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { offlineDb, type SyncStatus } from '../../services/offlineDb';
+import { notifySyncStateChanged } from '../../services/syncEngine';
+import { SyncBadge } from './SyncStatusBar';
 
 interface ConsultaProps {
   pacientes: any[];
   medicos: any[];
   enfermeiros: any[];
   medicamentos: any[];
-  onSaveConsulta: (consulta: any) => void;
+  onSaveConsulta: (consulta: any) => Promise<{ syncStatus?: SyncStatus } | void>;
+  userScope?: string;
   /** Dados de um atendimento anterior (vindo do Histórico) */
   initialData?: {
     paciente: string;
@@ -34,6 +38,7 @@ export default function Consulta({
   enfermeiros,
   medicamentos,
   onSaveConsulta,
+  userScope = 'anonymous',
   initialData,
 }: ConsultaProps) {
   const [tipoProfissional, setTipoProfissional] = useState<'medico' | 'enfermeiro'>('medico');
@@ -44,19 +49,125 @@ export default function Consulta({
   const [resultado, setResultado] = useState<any>(null);
   const [prescricao, setPrescricao] = useState('');
   const [jaFoiSalva, setJaFoiSalva] = useState(false);
+  const [confirmadaNoServidor, setConfirmadaNoServidor] = useState(false);
+  const [draftStatus, setDraftStatus] = useState<SyncStatus | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const draftLoadedRef = useRef(false);
 
   const { t, language } = useLanguage();
+  const draftKey = `${userScope}:consulta-draft`;
+
+  // Restaurar rascunho persistido no IndexedDB ao abrir/recarregar a página
+  useEffect(() => {
+    if (!userScope || userScope === 'anonymous' || initialData) {
+      draftLoadedRef.current = true;
+      return;
+    }
+    let active = true;
+    offlineDb.clinicalDrafts
+      .get(draftKey)
+      .then((saved) => {
+        if (!active) return;
+        if (saved && (saved.pacienteId || saved.medicamentoId || saved.prescricao)) {
+          setTipoProfissional(saved.tipoProfissional || 'medico');
+          setProfissionalId(saved.profissionalId || '');
+          setPacienteId(saved.pacienteId || '');
+          setMedicamentoId(saved.medicamentoId || '');
+          setTipoCalculo(saved.tipoCalculo || 'dose');
+          setPrescricao(saved.prescricao || '');
+          if (saved.resultado) {
+            setResultado(saved.resultado);
+          }
+          setDraftStatus(saved.status || 'LOCAL_DRAFT');
+          if (saved.status === 'SINCRONIZADO') {
+            setJaFoiSalva(true);
+            setConfirmadaNoServidor(true);
+          } else if (saved.status === 'PENDENTE') {
+            setJaFoiSalva(true);
+            setConfirmadaNoServidor(false);
+          }
+        }
+        draftLoadedRef.current = true;
+      })
+      .catch(() => {
+        draftLoadedRef.current = true;
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [draftKey, userScope, initialData]);
+
+  // Ouvir eventos de sincronização para atualizar status de PENDENTE -> SINCRONIZADO quando a conexão voltar
+  useEffect(() => {
+    const handleSyncUpdated = () => {
+      if (!userScope || userScope === 'anonymous') return;
+      offlineDb.clinicalDrafts.get(draftKey).then((saved) => {
+        if (saved && saved.status === 'SINCRONIZADO') {
+          setDraftStatus('SINCRONIZADO');
+          setConfirmadaNoServidor(true);
+          setJaFoiSalva(true);
+        }
+      });
+    };
+    window.addEventListener('dosecerta:sync-updated', handleSyncUpdated);
+    return () => window.removeEventListener('dosecerta:sync-updated', handleSyncUpdated);
+  }, [draftKey, userScope]);
+
+  // Persistir rascunho local automaticamente no IndexedDB durante edição
+  useEffect(() => {
+    if (!draftLoadedRef.current || !userScope || userScope === 'anonymous') return;
+    const hasContent = Boolean(pacienteId || medicamentoId || profissionalId || prescricao);
+    if (!hasContent) return;
+
+    const nextStatus: SyncStatus =
+      draftStatus === 'SINCRONIZADO' && jaFoiSalva
+        ? 'SINCRONIZADO'
+        : draftStatus === 'PENDENTE' && jaFoiSalva
+        ? 'PENDENTE'
+        : 'LOCAL_DRAFT';
+
+    if (draftStatus !== nextStatus) {
+      setDraftStatus(nextStatus);
+    }
+
+    offlineDb.clinicalDrafts
+      .put({
+        draftKey,
+        userScope,
+        tipoProfissional,
+        profissionalId,
+        pacienteId,
+        medicamentoId,
+        tipoCalculo,
+        prescricao,
+        resultado,
+        status: nextStatus,
+        updatedAt: Date.now(),
+      })
+      .then(() => notifySyncStateChanged())
+      .catch(() => {});
+  }, [
+    tipoProfissional,
+    profissionalId,
+    pacienteId,
+    medicamentoId,
+    tipoCalculo,
+    prescricao,
+    resultado,
+    jaFoiSalva,
+    draftStatus,
+    draftKey,
+    userScope,
+  ]);
 
   // Preencher campos quando `initialData` é fornecido pelo Histórico
   useEffect(() => {
     if (!initialData) return;
 
-    // Mapear tipo profissional
     const tipo = initialData.tipoProfissional === 'medico' ? 'medico' : 'enfermeiro';
     setTipoProfissional(tipo);
 
-    // Encontrar IDs pelo nome
     const profList = tipo === 'medico' ? medicos : enfermeiros;
     const prof = profList.find(p => p.nome === initialData.profissional);
     if (prof) setProfissionalId(prof.id.toString());
@@ -67,7 +178,6 @@ export default function Consulta({
     const med = medicamentos.find(m => m.nome === initialData.medicamento);
     if (med) setMedicamentoId(med.id.toString());
 
-    // Mostrar prescrição anterior
     if (initialData.observacoes) {
       setPrescricao(initialData.observacoes);
     }
@@ -83,9 +193,12 @@ export default function Consulta({
   const calcularDose = () => {
     if (!pacienteSelecionado || !medicamentoSelecionado) return;
 
-    // FIX C-01: campos agora são number (não string), sem parseFloat necessário
     const dose = medicamentoSelecionado.dosePorKg;   // number
     const peso = pacienteSelecionado.peso;            // number
+    const doseMaxima = medicamentoSelecionado.doseMaxima; // number
+    const doseBrutaMg = dose * peso;
+    const doseMaximaExcedida = typeof doseMaxima === 'number' && doseMaxima > 0 && doseBrutaMg > doseMaxima;
+
     let calculoFinal = 0;
     let unidade = '';
     let formula = '';
@@ -93,12 +206,11 @@ export default function Consulta({
 
     switch (tipoCalculo) {
       case 'dose':
-        calculoFinal = dose * peso;
+        calculoFinal = doseBrutaMg;
         unidade = 'mg';
         formula = `${isEn ? 'Dose' : 'Dose'} = ${dose} mg/kg × ${peso} kg = ${calculoFinal.toFixed(2)} mg`;
         break;
       case 'volume': {
-        // FIX C-01: doseDisponivel e volumeDisponivel (nomes corretos)
         const doseDisp = medicamentoSelecionado.doseDisponivel;   // number
         const volDisp = medicamentoSelecionado.volumeDisponivel;  // number
         if (doseDisp > 0 && volDisp > 0) {
@@ -115,13 +227,11 @@ export default function Consulta({
         break;
       }
       case 'gotas': {
-        // FIX C-01: fatorGotejamento e tempoMinutos (nomes corretos)
         const doseDisp = medicamentoSelecionado.doseDisponivel;    // number
         const volDisp = medicamentoSelecionado.volumeDisponivel;   // number
         const fator = medicamentoSelecionado.fatorGotejamento;     // number
         const tempo = medicamentoSelecionado.tempoMinutos;         // number
         
-        // FIX C-05: prevenção de divisão por zero no frontend também
         if (tempo <= 0 || fator <= 0 || doseDisp <= 0 || volDisp <= 0) {
           toast.error(isEn
             ? 'Medication is missing infusion time/factor data for drip calculation.'
@@ -151,9 +261,11 @@ export default function Consulta({
       medicamento: medicamentoSelecionado.nome,
       peso,
       dosagem: dose,
+      doseMaximaExcedida,
     });
-    // Qualquer recalculo reabilita o salvar
     setJaFoiSalva(false);
+    setConfirmadaNoServidor(false);
+    setDraftStatus('LOCAL_DRAFT');
 
     const nomeMed = medicamentoSelecionado.nome || '-';
     const marcaMed = medicamentoSelecionado.brand && medicamentoSelecionado.brand !== 'undefined'
@@ -163,7 +275,10 @@ export default function Consulta({
       ? medicamentoSelecionado.notas
       : '';
 
-    // isEn já declarado no início da função calcularDose
+    const alertaDoseMax = doseMaximaExcedida
+      ? `\n⚠️ ALERTA CLÍNICO: Dose calculada (${doseBrutaMg.toFixed(2)} mg) excede a dose máxima recomendada (${doseMaxima} mg).`
+      : '';
+
     const prescricaoTexto = `${isEn ? 'MEDICAL PRESCRIPTION' : 'PRESCRIÇÃO MÉDICA'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -176,7 +291,7 @@ ${isEn ? 'Age' : 'Idade'}: ${pacienteSelecionado.idade} ${isEn ? 'years' : 'anos
 ${isEn ? 'MEDICATION' : 'MEDICAMENTO'}
 ${isEn ? 'Name' : 'Nome'}: ${nomeMed}${marcaMed ? ` (${marcaMed})` : ''}
 ${isEn ? 'Calculated Dose' : 'Dose Calculada'}: ${calculoFinal.toFixed(2)} ${unidade}
-${isEn ? 'Interval' : 'Intervalo'}: ${medicamentoSelecionado.intervalo || '-'}
+${isEn ? 'Interval' : 'Intervalo'}: ${medicamentoSelecionado.intervalo || '-'}${alertaDoseMax}
 
 ${isEn ? 'CALCULATION' : 'CÁLCULO'}
 ${isEn ? 'Formula' : 'Fórmula'}: ${formula}
@@ -194,14 +309,13 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
     setPrescricao(prescricaoTexto);
   };
 
-  // ─── Salvar no histórico via API ────────────────────────────────────────────
+  // ─── Salvar no histórico via API ou Fila Offline ────────────────────────────
   const handleSalvar = async () => {
     const isEn = language === 'en';
     if (!resultado) {
       toast.warning(isEn ? 'Generate calculation before saving.' : 'Gere o cálculo antes de salvar.');
       return;
     }
-    // FIX M-06: valida profissionalId no momento do salvamento (não apenas no cálculo)
     if (!profissionalId) {
       toast.error(isEn ? 'Select a professional before saving.' : 'Selecione um profissional antes de salvar.');
       return;
@@ -215,17 +329,33 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
 
     setSalvando(true);
     try {
-      await onSaveConsulta({
+      const saveResult = await onSaveConsulta({
         pacienteId: Number(pacienteId),
+        pacienteNome: pacienteSelecionado?.nome,
         medicamentoId: Number(medicamentoId),
+        medicamentoNome: medicamentoSelecionado?.nome,
         profissionalId: Number(profissionalId),
+        profissionalNome: profissionalSelecionado?.nome,
         tipoProfissional,
         tipoCalculo,
+        resultadoFormatado: `${resultado.valor} ${resultado.unidade}`,
         observacoes: prescricao,
       });
+
+      const resultingStatus = saveResult?.syncStatus ?? 'SINCRONIZADO';
       setJaFoiSalva(true);
-      toast.success(isEn ? '✅ Consultation saved to history successfully!' : '✅ Atendimento salvo no histórico com sucesso!');
+      setDraftStatus(resultingStatus);
+      setConfirmadaNoServidor(resultingStatus === 'SINCRONIZADO');
+
+      if (resultingStatus === 'SINCRONIZADO') {
+        toast.success(isEn ? '✅ Consultation saved and validated by server!' : '✅ Atendimento validado e salvo no servidor com sucesso!');
+      } else {
+        toast.info(
+          ' Atendimento salvo localmente na fila de sincronização (Pendente). A emissão de receita oficial aguarda validação do servidor.'
+        );
+      }
     } catch (err: any) {
+      setDraftStatus('ERRO');
       toast.error(err?.message || (isEn ? 'Error saving consultation. Check server connection.' : 'Erro ao salvar consulta. Verifique a conexão com o servidor.'));
     } finally {
       setSalvando(false);
@@ -233,7 +363,7 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
   };
 
   // ─── Limpar todos os campos ────────────────────────────────────────────────
-  const handleLimpar = () => {
+  const handleLimpar = async () => {
     setTipoProfissional('medico');
     setProfissionalId('');
     setPacienteId('');
@@ -242,14 +372,23 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
     setResultado(null);
     setPrescricao('');
     setJaFoiSalva(false);
+    setConfirmadaNoServidor(false);
+    setDraftStatus(null);
+    if (userScope && userScope !== 'anonymous') {
+      await offlineDb.clinicalDrafts.delete(draftKey).catch(() => {});
+      notifySyncStateChanged();
+    }
     toast.info(t('common.status') === 'Status' ? 'Fields cleared.' : 'Campos limpos.');
   };
 
-
-  // ─── Exportar PDF Receituário (Interno) ──────────────────────────────────────────────────────────
+  // ─── Exportar PDF Receituário (Interno) ─────────────────────────────────────
   const handleExportarReceituario = () => {
     if (!prescricao) {
       toast.warning('Gere o cálculo primeiro para exportar a receita.');
+      return;
+    }
+    if (!confirmadaNoServidor) {
+      toast.warning('Por segurança clínica, aguarde a validação do servidor (Sincronizado) para exportar o receituário oficial.');
       return;
     }
 
@@ -258,8 +397,7 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
     const pageWidth = doc.internal.pageSize.getWidth();
     const usableWidth = pageWidth - margin * 2;
 
-    // Cabeçalho Interno
-    doc.setFillColor(37, 99, 235); // blue-600
+    doc.setFillColor(37, 99, 235);
     doc.rect(0, 0, pageWidth, 28, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
@@ -272,7 +410,6 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
     doc.setFontSize(10);
     doc.text(isEn ? `Issued on: ${new Date().toLocaleString('en-US')}` : `Emitido em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 20, { align: 'right' });
 
-    // Conteúdo da prescrição
     doc.setTextColor(30, 30, 30);
     doc.setFont('courier', 'normal');
     doc.setFontSize(9.5);
@@ -297,10 +434,14 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
     toast.success(isEn ? 'Internal Receipt generated successfully!' : 'Receituário Interno gerado com sucesso!');
   };
 
-  // ─── Exportar PDF Receita Digital (Paciente) ──────────────────────────────────────────────────────────
+  // ─── Exportar PDF Receita Digital (Paciente) ────────────────────────────────
   const handleExportarReceitaDigital = () => {
     if (!resultado) {
       toast.warning('Gere o cálculo primeiro para exportar a receita digital.');
+      return;
+    }
+    if (!confirmadaNoServidor) {
+      toast.warning('Por segurança clínica, aguarde a validação do servidor (Sincronizado) para exportar a receita digital oficial.');
       return;
     }
 
@@ -308,7 +449,6 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
     const margin = 20;
     const pageWidth = doc.internal.pageSize.getWidth();
 
-    // Estilo mais clean e profissional
     const isEn = t('common.status') === 'Status';
     doc.text(isEn ? 'DIGITAL PRESCRIPTION' : 'RECEITUÁRIO DIGITAL', pageWidth / 2, 30, { align: 'center' });
     
@@ -316,20 +456,17 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
     doc.setDrawColor(200, 200, 200);
     doc.line(margin, 35, pageWidth - margin, 35);
 
-    // Dados do Paciente
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
     doc.text(`${isEn ? 'Patient' : 'Paciente'}: ${pacienteSelecionado?.nome || ''}`, margin, 50);
     
-    // Mostra CPF ou Passaporte (tipoDocumento se existir)
     const docIdentificacao = pacienteSelecionado?.cpf || '';
     doc.text(`${isEn ? 'Document' : 'Documento'}: ${docIdentificacao}`, margin, 58);
     doc.text(`${isEn ? 'Age' : 'Idade'}: ${pacienteSelecionado?.idade || ''} ${isEn ? 'years' : 'anos'}`, margin, 66);
 
     doc.line(margin, 75, pageWidth - margin, 75);
 
-    // Medicamento
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.text(`${isEn ? 'Prescription' : 'Prescrição'}:`, margin, 90);
@@ -337,10 +474,9 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     const nomeMed = medicamentoSelecionado?.nome || '';
-    const marcaMed = medicamentoSelecionado?.marca && medicamentoSelecionado.marca !== 'undefined' ? `(${medicamentoSelecionado.marca})` : '';
+    const marcaMed = medicamentoSelecionado?.brand && medicamentoSelecionado.brand !== 'undefined' ? `(${medicamentoSelecionado.brand})` : '';
     doc.text(`1. ${nomeMed} ${marcaMed}`, margin, 105);
 
-    // Instruções de Uso
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
     
@@ -357,7 +493,6 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
       doc.text(`Obs: ${medicamentoSelecionado.notas}`, margin + 5, 138);
     }
 
-    // Assinatura
     const profNome = profissionalSelecionado?.nome || '';
     const profReg = tipoProfissional === 'medico' 
         ? `CRM: ${profissionalSelecionado?.crm || ''}` 
@@ -372,7 +507,6 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
     doc.setFontSize(10);
     doc.text(profReg, pageWidth / 2, 253, { align: 'center' });
 
-    // Rodapé
     doc.setFontSize(9);
     doc.setTextColor(150, 150, 150);
     doc.text(`Dose Certa - ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-BR')} ${new Date().toLocaleTimeString(isEn ? 'en-US' : 'pt-BR', { hour: '2-digit', minute: '2-digit' })}`, pageWidth / 2, 280, { align: 'center' });
@@ -387,10 +521,17 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
       {/* ── Seleção de Dados ── */}
       <Card className="border-slate-200/60 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl shadow-sm">
         <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 pb-4">
-          <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
-            <Calculator className="w-5 h-5 text-blue-500" />
-            {t('consulta.title')}
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
+              <Calculator className="w-5 h-5 text-blue-500" />
+              {t('consulta.title')}
+            </CardTitle>
+            {draftStatus && (
+              <div data-testid="consulta-draft-status" className="flex items-center gap-2">
+                <SyncBadge status={draftStatus} />
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -400,6 +541,8 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
               <Select value={tipoProfissional} onValueChange={(v: any) => {
                 setTipoProfissional(v);
                 setProfissionalId('');
+                setJaFoiSalva(false);
+                setConfirmadaNoServidor(false);
               }}>
                 <SelectTrigger className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-blue-500/50">
                   <SelectValue />
@@ -414,7 +557,7 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
             {/* Médico / Enfermeiro */}
             <div className="space-y-2">
               <Label className="text-slate-600 dark:text-slate-300 font-medium">{tipoProfissional === 'medico' ? t('consulta.prof.medico') : t('consulta.prof.enfermeiro')}</Label>
-              <Select value={profissionalId} onValueChange={setProfissionalId}>
+              <Select value={profissionalId} onValueChange={(v) => { setProfissionalId(v); setJaFoiSalva(false); setConfirmadaNoServidor(false); }}>
                 <SelectTrigger className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-blue-500/50">
                   <SelectValue placeholder={tipoProfissional === 'medico' ? t('consulta.prof.select_medico') : t('consulta.prof.select_enfermeiro')} />
                 </SelectTrigger>
@@ -431,7 +574,7 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
             {/* Paciente */}
             <div className="space-y-2">
               <Label className="text-slate-600 dark:text-slate-300 font-medium">{t('consulta.paciente')}</Label>
-              <Select value={pacienteId} onValueChange={setPacienteId}>
+              <Select value={pacienteId} onValueChange={(v) => { setPacienteId(v); setJaFoiSalva(false); setConfirmadaNoServidor(false); }}>
                 <SelectTrigger className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-blue-500/50">
                   <SelectValue placeholder={t('consulta.paciente.select')} />
                 </SelectTrigger>
@@ -448,14 +591,14 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
             {/* Medicamento */}
             <div className="space-y-2">
               <Label className="text-slate-600 dark:text-slate-300 font-medium">{t('consulta.med')}</Label>
-              <Select value={medicamentoId} onValueChange={setMedicamentoId}>
+              <Select value={medicamentoId} onValueChange={(v) => { setMedicamentoId(v); setJaFoiSalva(false); setConfirmadaNoServidor(false); }}>
                 <SelectTrigger className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-blue-500/50">
                   <SelectValue placeholder={t('consulta.med.select')} />
                 </SelectTrigger>
                 <SelectContent>
                   {medicamentos.map(m => (
                     <SelectItem key={m.id} value={m.id.toString()}>
-                      {m.nome} ({m.marca})
+                      {m.nome} ({m.brand || m.marca || '-'})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -465,7 +608,7 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
             {/* Tipo de Cálculo */}
             <div className="space-y-2">
               <Label className="text-slate-600 dark:text-slate-300 font-medium">{t('consulta.tipo_calc')}</Label>
-              <Select value={tipoCalculo} onValueChange={(v: TipoCalculo) => setTipoCalculo(v)}>
+              <Select value={tipoCalculo} onValueChange={(v: TipoCalculo) => { setTipoCalculo(v); setJaFoiSalva(false); setConfirmadaNoServidor(false); }}>
                 <SelectTrigger className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-blue-500/50">
                   <SelectValue />
                 </SelectTrigger>
@@ -482,6 +625,7 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
               <Button
                 onClick={calcularDose}
                 disabled={!pacienteId || !medicamentoId || !profissionalId}
+                data-testid="consulta-gerar-calculo-btn"
                 className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:shadow-none transition-all duration-300"
               >
                 <Calculator className="w-4 h-4 mr-2" />
@@ -501,6 +645,19 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
           <div className="bg-white/80 dark:bg-slate-900/80 border-2 border-slate-200/50 dark:border-slate-800 rounded-xl p-6 min-h-[220px] shadow-inner backdrop-blur-md">
             {resultado ? (
               <div className="space-y-4 animate-in slide-in-from-bottom-2 duration-300">
+                {resultado.doseMaximaExcedida && (
+                  <div
+                    role="alert"
+                    data-testid="consulta-alerta-dose-maxima"
+                    className="flex items-center gap-3 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-sm font-semibold"
+                  >
+                    <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600" />
+                    <span>
+                      Alerta clínico: a dose calculada excede a dose máxima recomendada ({medicamentoSelecionado?.doseMaxima} mg).
+                    </span>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4 text-sm text-slate-600 dark:text-slate-400">
                   <p><span className="font-semibold text-slate-800 dark:text-slate-200">{t('consulta.result.med')}</span> {resultado.medicamento}</p>
                   <p><span className="font-semibold text-slate-800 dark:text-slate-200">{t('consulta.result.type')}</span> {
@@ -511,13 +668,13 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
 
                 <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
                   <p className="text-sm font-semibold mb-2 text-slate-800 dark:text-slate-200">{t('consulta.result.formula')}</p>
-                  <p className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-lg text-sm font-mono text-slate-700 dark:text-slate-300 border border-slate-100 dark:border-slate-800">{resultado.formula}</p>
+                  <p data-testid="consulta-formula" className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-lg text-sm font-mono text-slate-700 dark:text-slate-300 border border-slate-100 dark:border-slate-800">{resultado.formula}</p>
                 </div>
 
                 <div className="border-t border-slate-200 dark:border-slate-800 pt-4 mt-2">
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-xl flex items-center justify-between border border-blue-100/50 dark:border-blue-800/30 shadow-sm">
                     <p className="text-sm text-blue-800 dark:text-blue-300 font-bold tracking-wide">{t('consulta.result.final')}</p>
-                    <p className="text-3xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">{resultado.valor} <span className="text-xl font-bold text-blue-600/80 dark:text-blue-400/80">{resultado.unidade}</span></p>
+                    <p data-testid="consulta-resultado-final" className="text-3xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">{resultado.valor} <span className="text-xl font-bold text-blue-600/80 dark:text-blue-400/80">{resultado.unidade}</span></p>
                   </div>
                 </div>
 
@@ -547,11 +704,38 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
           </CardTitle>
         </CardHeader>
         <CardContent className="mt-6 space-y-4">
+          {/* Aviso de segurança clínica quando salvo offline / pendente de validação do servidor */}
+          {jaFoiSalva && !confirmadaNoServidor && (
+            <div
+              data-testid="consulta-offline-clinical-guard"
+              className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs"
+            >
+              <Clock className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+              <div>
+                <p className="font-bold">Rascunho clínico pendente de validação do servidor</p>
+                <p className="mt-0.5">
+                  O atendimento foi salvo localmente na fila de sincronização. Por segurança clínica, a emissão oficial de receituário em PDF é habilitada somente após a confirmação do servidor (Sincronizado).
+                </p>
+              </div>
+            </div>
+          )}
+
+          {jaFoiSalva && confirmadaNoServidor && (
+            <div
+              data-testid="consulta-server-confirmed-badge"
+              className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              Cálculo clínico validado e sincronizado com o servidor. Emissão de receituário liberada.
+            </div>
+          )}
+
           <Textarea
             value={prescricao}
             onChange={e => setPrescricao(e.target.value)}
             placeholder={t('consulta.presc.placeholder')}
             rows={15}
+            data-testid="consulta-prescricao-textarea"
             className="font-mono text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 focus-visible:ring-indigo-500/50"
           />
 
@@ -560,6 +744,7 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
             <Button
               onClick={handleSalvar}
               disabled={!resultado || salvando}
+              data-testid="consulta-salvar-btn"
               className={jaFoiSalva
                 ? "bg-slate-400 hover:bg-slate-400 cursor-default text-white"
                 : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/20 transition-all"
@@ -571,7 +756,8 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
 
             <Button
               onClick={handleExportarReceituario}
-              disabled={!jaFoiSalva}
+              disabled={!jaFoiSalva || !confirmadaNoServidor}
+              data-testid="consulta-pdf-interno-btn"
               variant="outline"
               className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
             >
@@ -581,7 +767,8 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
 
             <Button
               onClick={handleExportarReceitaDigital}
-              disabled={!jaFoiSalva}
+              disabled={!jaFoiSalva || !confirmadaNoServidor}
+              data-testid="consulta-pdf-digital-btn"
               variant="outline"
               className="border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 disabled:opacity-50"
             >
@@ -591,6 +778,7 @@ ${isEn ? 'Date' : 'Data'}: ${new Date().toLocaleDateString(isEn ? 'en-US' : 'pt-
 
             <Button
               onClick={handleLimpar}
+              data-testid="consulta-limpar-btn"
               variant="outline"
               className="border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 ml-auto"
             >

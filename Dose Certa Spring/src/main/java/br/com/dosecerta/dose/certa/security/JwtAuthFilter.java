@@ -1,5 +1,8 @@
 package br.com.dosecerta.dose.certa.security;
 
+import br.com.dosecerta.dose.certa.entity.StatusUsuario;
+import br.com.dosecerta.dose.certa.entity.Usuario;
+import br.com.dosecerta.dose.certa.repository.UsuarioRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,14 +16,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final UsuarioRepository usuarioRepository;
 
-    public JwtAuthFilter(JwtService jwtService) {
+    public JwtAuthFilter(JwtService jwtService, UsuarioRepository usuarioRepository) {
         this.jwtService = jwtService;
+        this.usuarioRepository = usuarioRepository;
     }
 
     @Override
@@ -36,15 +42,32 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String token = authHeader.substring(7);
             try {
                 String login = jwtService.getLogin(token);
-                String perfil = jwtService.getPerfil(token);
+                String perfilToken = jwtService.getPerfil(token);
 
-                // Popula a authority com o perfil do token (ex: "ADMIN", "MEDICO")
+                Optional<Usuario> usuarioOpt = usuarioRepository.findByLogin(login)
+                        .or(() -> usuarioRepository.findByLoginIgnoreCase(login));
+
+                if (usuarioOpt.isEmpty() || usuarioOpt.get().getStatus() != StatusUsuario.ATIVO) {
+                    SecurityContextHolder.clearContext();
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write(
+                            "{\"status\":401,\"error\":\"CONTA_INATIVA\",\"message\":\"Sessão inválida ou usuário inativo/pendente.\"}"
+                    );
+                    return;
+                }
+
+                Usuario usuarioAtivo = usuarioOpt.get();
+                String perfilEfetivo = usuarioAtivo.getPerfil() != null
+                        ? usuarioAtivo.getPerfil().name()
+                        : (perfilToken != null ? perfilToken : "");
+
                 List<SimpleGrantedAuthority> authorities = List.of(
-                        new SimpleGrantedAuthority(perfil != null ? perfil : "")
+                        new SimpleGrantedAuthority(perfilEfetivo)
                 );
 
                 UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(login, null, authorities);
+                        new UsernamePasswordAuthenticationToken(usuarioAtivo.getLogin(), null, authorities);
 
                 authentication.setDetails(
                         new WebAuthenticationDetailsSource().buildDetails(request)
@@ -52,8 +75,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (Exception e) {
-                // Token inválido/expirado — deixa seguir sem autenticação
-                // O framework vai retornar 401 se o endpoint exigir autenticação
+                SecurityContextHolder.clearContext();
             }
         }
 

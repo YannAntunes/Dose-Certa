@@ -16,6 +16,7 @@ import {
 import { Button } from './ui/button';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from 'next-themes';
+import SyncStatusBar from './SyncStatusBar';
 
 interface DashboardProps {
   children: ReactNode;
@@ -24,6 +25,8 @@ interface DashboardProps {
   username: string;
   role: string;
   onLogout: () => void;
+  userScope?: string;
+  onSyncNow?: () => Promise<void>;
 }
 
 export default function Dashboard({ 
@@ -32,7 +35,9 @@ export default function Dashboard({
   onPageChange, 
   username, 
   role,
-  onLogout 
+  onLogout,
+  userScope = 'anonymous',
+  onSyncNow = async () => {},
 }: DashboardProps) {
   const { t, language, setLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
@@ -146,6 +151,9 @@ export default function Dashboard({
             </div>
           </div>
         </header>
+
+        {/* Barra de Status Offline-First / Sincronização */}
+        <SyncStatusBar userScope={userScope} onSyncNow={onSyncNow} />
 
         {/* Page Content */}
         <main className="flex-1 p-8">

@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { SyncBadge } from './SyncStatusBar';
+import type { SyncStatus } from '../../services/offlineDb';
 
 interface HistoricoItem {
   id: number;
@@ -15,6 +17,8 @@ interface HistoricoItem {
   medicamento: string;
   resultado: string;
   observacoes?: string;
+  _syncStatus?: SyncStatus;
+  _syncError?: string;
 }
 
 interface HistoricoProps {
@@ -94,7 +98,12 @@ export default function Historico({
                         <TableCell className="text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">
                           {formatDate(item.data)}
                         </TableCell>
-                        <TableCell className="font-medium text-slate-800 dark:text-slate-200">{item.paciente}</TableCell>
+                        <TableCell className="font-medium text-slate-800 dark:text-slate-200">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span>{item.paciente}</span>
+                            <SyncBadge status={item._syncStatus} errorMessage={item._syncError} />
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-1">
                             <span className="text-sm text-slate-700 dark:text-slate-300">{item.profissional}</span>

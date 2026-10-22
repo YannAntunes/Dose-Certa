@@ -1,6 +1,18 @@
 import { useState } from 'react';
 import {
-  UserCog, UserPlus, Search, Pencil, Trash2, Eye, EyeOff, X, Check, ShieldAlert
+  UserCog,
+  UserPlus,
+  Search,
+  Pencil,
+  Trash2,
+  Eye,
+  EyeOff,
+  X,
+  Check,
+  ShieldAlert,
+  UserCheck,
+  UserX,
+  Ban,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -8,7 +20,7 @@ import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Usuario, UsuarioRequest, PerfilUsuario } from '../../services/api';
+import { Usuario, UsuarioRequest, PerfilUsuario, StatusUsuario } from '../../services/api';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 const getPerfis = (t: any): { value: PerfilUsuario; label: string }[] => [
@@ -25,11 +37,21 @@ const PERFIL_BADGE: Record<PerfilUsuario, string> = {
   RECEPCAO: 'bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
 };
 
+const STATUS_BADGE: Record<StatusUsuario, string> = {
+  PENDENTE: 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700',
+  ATIVO: 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700',
+  REJEITADO: 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-700',
+  INATIVO: 'bg-slate-200 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+};
+
 interface UsuariosProps {
   usuarios: Usuario[];
   onAdd: (u: UsuarioRequest) => Promise<void>;
   onUpdate: (id: number, u: UsuarioRequest) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  onApprove?: (id: number, perfil: PerfilUsuario) => Promise<void>;
+  onReject?: (id: number) => Promise<void>;
+  onChangeStatus?: (id: number, status: StatusUsuario) => Promise<void>;
   currentUserId?: number;
 }
 
@@ -43,7 +65,14 @@ interface FormState {
 const emptyForm = (): FormState => ({ login: '', senha: '', confirmSenha: '', perfil: '' });
 
 export default function Usuarios({
-  usuarios, onAdd, onUpdate, onDelete, currentUserId
+  usuarios,
+  onAdd,
+  onUpdate,
+  onDelete,
+  onApprove,
+  onReject,
+  onChangeStatus,
+  currentUserId,
 }: UsuariosProps) {
   const [form, setForm] = useState<FormState>(emptyForm());
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -53,6 +82,7 @@ export default function Usuarios({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [approvalRoles, setApprovalRoles] = useState<Record<number, PerfilUsuario>>({});
 
   const { t, language } = useLanguage();
   const PERFIS = getPerfis(t);
@@ -76,12 +106,10 @@ export default function Usuarios({
     if (!form.login.trim()) return t('usuarios.form.login') + ' é obrigatório';
     if (!form.perfil) return t('usuarios.form.role_placeholder');
     if (!isEditing && !form.senha) return t('usuarios.form.password') + ' é obrigatória';
-    // FIX M-05: mínimo 8 caracteres (padrão mínimo para sistemas clínicos)
     if (form.senha && form.senha.length < 8)
       return language === 'en'
         ? 'Password must have at least 8 characters'
         : 'A senha deve ter pelo menos 8 caracteres';
-    // FIX M-05: deve conter pelo menos 1 número
     if (form.senha && !/\d/.test(form.senha))
       return language === 'en'
         ? 'Password must contain at least 1 number'
@@ -130,10 +158,56 @@ export default function Usuarios({
     }
   };
 
+  const handleApproveUser = async (usuario: Usuario) => {
+    if (!onApprove) return;
+    const selectedRole =
+      approvalRoles[usuario.id] || usuario.perfilSolicitado || usuario.perfil || 'RECEPCAO';
+    setLoading(true);
+    setError('');
+    try {
+      await onApprove(usuario.id, selectedRole);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao aprovar usuário.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectUser = async (id: number) => {
+    if (!onReject) return;
+    setLoading(true);
+    setError('');
+    try {
+      await onReject(id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao rejeitar usuário.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleStatus = async (usuario: Usuario) => {
+    if (!onChangeStatus) return;
+    const currentStatus = usuario.status || 'ATIVO';
+    const nextStatus: StatusUsuario = currentStatus === 'ATIVO' ? 'INATIVO' : 'ATIVO';
+    setLoading(true);
+    setError('');
+    try {
+      await onChangeStatus(usuario.id, nextStatus);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao alterar status do usuário.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filtered = usuarios.filter(u =>
     u.login.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.perfil.toLowerCase().includes(searchTerm.toLowerCase())
+    u.perfil.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (u.status || 'ATIVO').toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const pendingUsersCount = usuarios.filter(u => u.status === 'PENDENTE').length;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -198,7 +272,7 @@ export default function Usuarios({
                     type={showSenha ? 'text' : 'password'}
                     value={form.senha}
                     onChange={e => setForm({ ...form, senha: e.target.value })}
-                    placeholder={isEditing ? (t('common.status') === 'Status' ? 'Leave blank to keep' : 'Deixe em branco para manter') : (t('common.status') === 'Status' ? 'Min 4 characters' : 'Mínimo 4 caracteres')}
+                    placeholder={isEditing ? (t('common.status') === 'Status' ? 'Leave blank to keep' : 'Deixe em branco para manter') : (t('common.status') === 'Status' ? 'Min 8 characters' : 'Mínimo 8 caracteres')}
                     autoComplete="new-password"
                     disabled={loading}
                     className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
@@ -274,13 +348,25 @@ export default function Usuarios({
         </CardContent>
       </Card>
 
-      {/* Lista de Usuários */}
+      {/* Lista de Usuários e Aprovação de Cadastros */}
       <Card className="border-slate-200/60 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl shadow-sm">
         <CardHeader>
-          <CardTitle className="text-slate-800 dark:text-slate-100">{t('usuarios.list.title')}</CardTitle>
-          <CardDescription className="dark:text-slate-400">
-            {t('common.status') === 'Status' ? 'Manage Dose Certa system access' : 'Gerencie os acessos ao sistema Dose Certa'}
-          </CardDescription>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-slate-800 dark:text-slate-100">{t('usuarios.list.title')}</CardTitle>
+              <CardDescription className="dark:text-slate-400">
+                {t('common.status') === 'Status' ? 'Manage Dose Certa system access' : 'Gerencie os acessos e aprove solicitações de cadastro do Dose Certa'}
+              </CardDescription>
+            </div>
+            {pendingUsersCount > 0 && (
+              <span
+                data-testid="pending-users-counter"
+                className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300"
+              >
+                {pendingUsersCount} solicitação(ões) PENDENTE(S)
+              </span>
+            )}
+          </div>
           <div className="mt-4 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <Input
@@ -298,77 +384,172 @@ export default function Usuarios({
                 <TableRow className="bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800">
                   <TableHead className="text-slate-600 dark:text-slate-300">{t('usuarios.form.login')}</TableHead>
                   <TableHead className="text-slate-600 dark:text-slate-300">{t('usuarios.form.role')}</TableHead>
+                  <TableHead className="text-slate-600 dark:text-slate-300">Status</TableHead>
                   <TableHead className="text-right text-slate-600 dark:text-slate-300">{t('common.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-slate-500 dark:text-slate-400 py-8">
+                    <TableCell colSpan={4} className="text-center text-slate-500 dark:text-slate-400 py-8">
                       {t('historico.empty')}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map(usuario => (
-                    <TableRow
-                      key={usuario.id}
-                      className={`${editingId === usuario.id ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'} border-slate-200 dark:border-slate-800`}
-                    >
-                      <TableCell className="font-medium text-slate-800 dark:text-slate-200">{usuario.login}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${PERFIL_BADGE[usuario.perfil]}`}>
-                          {PERFIS.find(p => p.value === usuario.perfil)?.label ?? usuario.perfil}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {deleteConfirmId === usuario.id ? (
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="text-xs text-rose-600 font-medium">{t('usuarios.delete.confirm')}</span>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleDelete(usuario.id)}
-                              disabled={loading}
-                              className="text-xs h-7 px-3"
-                            >
-                              {t('common.status') === 'Status' ? 'Yes' : 'Sim'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setDeleteConfirmId(null)}
-                              disabled={loading}
-                              className="text-xs h-7 px-3 border-slate-200 dark:border-slate-700"
-                            >
-                              {t('common.status') === 'Status' ? 'No' : 'Não'}
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEdit(usuario)}
-                              disabled={loading}
-                              className="text-xs h-8 border-slate-200 dark:border-slate-700 dark:text-slate-300"
-                            >
-                              <Pencil className="w-3 h-3 mr-1" />{t('common.edit')}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/30 border-rose-200 dark:border-rose-900 text-xs h-8"
-                              onClick={() => setDeleteConfirmId(usuario.id)}
-                              disabled={loading || usuario.id === currentUserId}
-                              title={usuario.id === currentUserId ? t('usuarios.delete.self') : ''}
-                            >
-                              <Trash2 className="w-3 h-3 mr-1" />{t('common.delete')}
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  filtered.map(usuario => {
+                    const userStatus: StatusUsuario = usuario.status || 'ATIVO';
+                    const roleForApproval =
+                      approvalRoles[usuario.id] || usuario.perfilSolicitado || usuario.perfil || 'RECEPCAO';
+
+                    return (
+                      <TableRow
+                        key={usuario.id}
+                        data-testid={`usuario-row-${usuario.login}`}
+                        className={`${editingId === usuario.id ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'} border-slate-200 dark:border-slate-800`}
+                      >
+                        <TableCell className="font-medium text-slate-800 dark:text-slate-200">
+                          <div>{usuario.login}</div>
+                          {usuario.perfilSolicitado && userStatus === 'PENDENTE' && (
+                            <span className="text-[11px] text-slate-500">
+                              Perfil solicitado: <strong>{usuario.perfilSolicitado}</strong>
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${PERFIL_BADGE[usuario.perfil]}`}>
+                            {PERFIS.find(p => p.value === usuario.perfil)?.label ?? usuario.perfil}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            data-testid={`usuario-status-${usuario.login}`}
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${STATUS_BADGE[userStatus]}`}
+                          >
+                            {userStatus}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {deleteConfirmId === usuario.id ? (
+                            <div className="flex items-center justify-end gap-2">
+                              <span className="text-xs text-rose-600 font-medium">{t('usuarios.delete.confirm')}</span>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDelete(usuario.id)}
+                                disabled={loading}
+                                className="text-xs h-7 px-3"
+                              >
+                                {t('common.status') === 'Status' ? 'Yes' : 'Sim'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setDeleteConfirmId(null)}
+                                disabled={loading}
+                                className="text-xs h-7 px-3 border-slate-200 dark:border-slate-700"
+                              >
+                                {t('common.status') === 'Status' ? 'No' : 'Não'}
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              {/* Ações de aprovação/rejeição para contas PENDENTE */}
+                              {userStatus === 'PENDENTE' && onApprove && (
+                                <>
+                                  <select
+                                    aria-label={`Perfil para ${usuario.login}`}
+                                    data-testid={`approve-role-select-${usuario.login}`}
+                                    value={roleForApproval}
+                                    onChange={(e) =>
+                                      setApprovalRoles({
+                                        ...approvalRoles,
+                                        [usuario.id]: e.target.value as PerfilUsuario,
+                                      })
+                                    }
+                                    disabled={loading}
+                                    className="h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-xs font-medium"
+                                  >
+                                    {PERFIS.map((p) => (
+                                      <option key={p.value} value={p.value}>
+                                        {p.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApproveUser(usuario)}
+                                    disabled={loading}
+                                    data-testid={`approve-user-btn-${usuario.login}`}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-2.5"
+                                  >
+                                    <UserCheck className="w-3.5 h-3.5 mr-1" />
+                                    Aprovar
+                                  </Button>
+                                  {onReject && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleRejectUser(usuario.id)}
+                                      disabled={loading}
+                                      data-testid={`reject-user-btn-${usuario.login}`}
+                                      className="border-rose-300 text-rose-700 hover:bg-rose-50 text-xs h-8 px-2.5"
+                                    >
+                                      <UserX className="w-3.5 h-3.5 mr-1" />
+                                      Rejeitar
+                                    </Button>
+                                  )}
+                                </>
+                              )}
+
+                              {/* Botão Ativar / Desativar para contas não pendentes */}
+                              {userStatus !== 'PENDENTE' && onChangeStatus && usuario.id !== currentUserId && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleToggleStatus(usuario)}
+                                  disabled={loading}
+                                  data-testid={`toggle-status-btn-${usuario.login}`}
+                                  className="text-xs h-8 border-slate-200 dark:border-slate-700"
+                                >
+                                  {userStatus === 'ATIVO' ? (
+                                    <>
+                                      <Ban className="w-3 h-3 mr-1 text-amber-600" />
+                                      Desativar
+                                    </>
+                                  ) : (
+                                    <>
+                                      <UserCheck className="w-3 h-3 mr-1 text-emerald-600" />
+                                      Ativar
+                                    </>
+                                  )}
+                                </Button>
+                              )}
+
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEdit(usuario)}
+                                disabled={loading}
+                                className="text-xs h-8 border-slate-200 dark:border-slate-700 dark:text-slate-300"
+                              >
+                                <Pencil className="w-3 h-3 mr-1" />{t('common.edit')}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/30 border-rose-200 dark:border-rose-900 text-xs h-8"
+                                onClick={() => setDeleteConfirmId(usuario.id)}
+                                disabled={loading || usuario.id === currentUserId}
+                                title={usuario.id === currentUserId ? t('usuarios.delete.self') : ''}
+                              >
+                                <Trash2 className="w-3 h-3 mr-1" />{t('common.delete')}
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

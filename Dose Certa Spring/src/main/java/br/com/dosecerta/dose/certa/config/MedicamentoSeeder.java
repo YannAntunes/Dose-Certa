@@ -3,6 +3,9 @@ package br.com.dosecerta.dose.certa.config;
 import br.com.dosecerta.dose.certa.entity.Medicamento;
 import br.com.dosecerta.dose.certa.entity.TipoCalculo;
 import br.com.dosecerta.dose.certa.repository.MedicamentoRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,9 +15,17 @@ import java.util.List;
 @Configuration
 public class MedicamentoSeeder {
 
+    private static final Logger log = LoggerFactory.getLogger(MedicamentoSeeder.class);
+
     @Bean
-    public CommandLineRunner initMedicamentos(MedicamentoRepository repository) {
+    public CommandLineRunner initMedicamentos(
+            MedicamentoRepository repository,
+            @Value("${app.seed.medicamentos-enabled:true}") boolean seedEnabled
+    ) {
         return args -> {
+            if (!seedEnabled) {
+                return;
+            }
             if (repository.count() < 10) {
                 Medicamento m1 = createMedicamento("Dipirona", "Novalgina", 15.0, 1000.0, 500.0, 1.0, 20, 0, "6 em 6 horas", "Uso comum para febre e dor", TipoCalculo.DOSE_MGKG);
                 Medicamento m2 = createMedicamento("Paracetamol", "Tylenol", 10.0, 750.0, 200.0, 1.0, 20, 0, "6 em 6 horas", "Antitérmico", TipoCalculo.DOSE_MGKG);
@@ -28,7 +39,7 @@ public class MedicamentoSeeder {
                 Medicamento m10 = createMedicamento("Morfina", "Dimorf", 0.1, 15.0, 10.0, 1.0, 20, 0, "4 em 4 horas", "Opioide forte", TipoCalculo.DOSE_MGKG);
 
                 repository.saveAll(List.of(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10));
-                System.out.println("10 medicamentos foram inseridos no banco de dados com sucesso.");
+                log.info("10 medicamentos iniciais inseridos no banco de dados.");
             }
         };
     }

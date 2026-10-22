@@ -1,5 +1,6 @@
 package br.com.dosecerta.dose.certa.config;
 
+import br.com.dosecerta.dose.certa.security.IdempotencyFilter;
 import br.com.dosecerta.dose.certa.security.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,9 +17,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final IdempotencyFilter idempotencyFilter;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter, IdempotencyFilter idempotencyFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.idempotencyFilter = idempotencyFilter;
     }
 
     @Bean
@@ -31,17 +34,20 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
 
                 // ══════════════════════════════════════════════════════
-                // Regras de acesso por perfil (FIX C-03)
+                // Regras de acesso por perfil (FIX C-03 + Cadastro Público Seguro)
                 // ══════════════════════════════════════════════════════
                 .authorizeHttpRequests(auth -> auth
                         // Libera preflight OPTIONS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Login público
+                        // Login e healthchecks públicos
                         .requestMatchers(HttpMethod.POST, "/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/login").permitAll()
+                        .requestMatchers("/", "/health/ready", "/health/live").permitAll()
 
-                        // ── USUÁRIOS: somente ADMIN ──
-                        .requestMatchers("/", "/health/ready").permitAll()
+                        // ── CADASTRO PÚBLICO (sempre cria com status PENDENTE, sem autoatribuição de ADMIN) ──
+                        .requestMatchers(HttpMethod.POST, "/usuarios/cadastro-publico").permitAll()
+
+                        // ── USUÁRIOS: administração somente ADMIN ──
                         .requestMatchers("/usuarios/**").hasAuthority("ADMIN")
 
                         // ── MEDICAMENTOS: leitura p/ todos, escrita p/ ADMIN e MEDICO ──
@@ -84,8 +90,9 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // Filtra JWT antes do filtro padrão do Spring
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                // Filtra JWT antes do filtro padrão do Spring e aplica idempotência após autenticação
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(idempotencyFilter, JwtAuthFilter.class);
 
         return http.build();
     }
