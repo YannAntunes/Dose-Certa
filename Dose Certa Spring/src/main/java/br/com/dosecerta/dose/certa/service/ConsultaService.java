@@ -9,9 +9,7 @@ import java.util.List;
 
 /**
  * Serviço central de cálculo e persistência de consultas.
- * FIX C-02: DosagemService foi removido (dead code com fórmulas divergentes).
- *           Toda lógica de cálculo está unificada aqui.
- * FIX C-05: Divisão por zero tratada explicitamente antes de executar cálculos.
+ * Toda lógica de cálculo está unificada aqui.
  */
 @Service
 public class ConsultaService {
@@ -28,8 +26,7 @@ public class ConsultaService {
             Medico medico,
             Enfermeiro enfermeiro,
             TipoCalculo tipoCalculo,
-            String observacoes
-    ) {
+            String observacoes) {
 
         if (paciente == null) {
             throw new IllegalArgumentException("Paciente obrigatório");
@@ -61,28 +58,23 @@ public class ConsultaService {
 
             case VOLUME_MLH -> {
                 // FIX C-05: volumeDisponivel já validado como > 0 acima
-                double concentracao =
-                        medicamento.getDoseDisponivel() / medicamento.getVolumeDisponivel();
+                double concentracao = medicamento.getDoseDisponivel() / medicamento.getVolumeDisponivel();
 
-                resultado =
-                        (paciente.getPeso() * medicamento.getDosePorKg()) / concentracao;
+                resultado = (paciente.getPeso() * medicamento.getDosePorKg()) / concentracao;
 
                 unidade = "mL/h";
             }
 
             case GOTAS_MIN -> {
-                double doseTotalMg =
-                        paciente.getPeso() * medicamento.getDosePorKg();
+                double doseTotalMg = paciente.getPeso() * medicamento.getDosePorKg();
 
                 // FIX C-05: volumeDisponivel e tempoMinutos já validados como > 0 acima
-                double concentracao =
-                        medicamento.getDoseDisponivel() / medicamento.getVolumeDisponivel();
+                double concentracao = medicamento.getDoseDisponivel() / medicamento.getVolumeDisponivel();
 
                 double volumeMl = doseTotalMg / concentracao;
 
-                resultado =
-                        (volumeMl * medicamento.getFatorGotejamento()) /
-                                medicamento.getTempoMinutos();
+                resultado = (volumeMl * medicamento.getFatorGotejamento()) /
+                        medicamento.getTempoMinutos();
 
                 unidade = "gotas/min";
             }
@@ -94,9 +86,8 @@ public class ConsultaService {
         if (resultado > medicamento.getDoseMaxima()) {
             resultado = medicamento.getDoseMaxima();
             alertaDoseMaxima = true;
-            mensagemAlerta =
-                    "A dose calculada ultrapassou o limite máximo permitido. " +
-                            "A prescrição foi ajustada automaticamente para a dose segura.";
+            mensagemAlerta = "A dose calculada ultrapassou o limite máximo permitido. " +
+                    "A prescrição foi ajustada automaticamente para a dose segura.";
         }
 
         Consulta consulta = new Consulta();
@@ -122,33 +113,37 @@ public class ConsultaService {
     private void validarCamposMedicamento(Medicamento medicamento, TipoCalculo tipoCalculo) {
         if (medicamento.getDosePorKg() <= 0) {
             throw new IllegalArgumentException(
-                "O campo 'Dose por kg' do medicamento deve ser maior que zero.");
+                    "O campo 'Dose por kg' do medicamento deve ser maior que zero.");
         }
 
         if (tipoCalculo == TipoCalculo.VOLUME_MLH || tipoCalculo == TipoCalculo.GOTAS_MIN) {
             if (medicamento.getDoseDisponivel() <= 0) {
                 throw new IllegalArgumentException(
-                    "O campo 'Dose disponível' do medicamento deve ser maior que zero para este tipo de cálculo.");
+                        "O campo 'Dose disponível' do medicamento deve ser maior que zero para este tipo de cálculo.");
             }
             if (medicamento.getVolumeDisponivel() <= 0) {
                 throw new IllegalArgumentException(
-                    "O campo 'Volume disponível' do medicamento deve ser maior que zero para este tipo de cálculo.");
+                        "O campo 'Volume disponível' do medicamento deve ser maior que zero para este tipo de cálculo.");
             }
         }
 
         if (tipoCalculo == TipoCalculo.GOTAS_MIN) {
             if (medicamento.getFatorGotejamento() <= 0) {
                 throw new IllegalArgumentException(
-                    "O campo 'Fator de gotejamento' do medicamento deve ser maior que zero.");
+                        "O campo 'Fator de gotejamento' do medicamento deve ser maior que zero.");
             }
             if (medicamento.getTempoMinutos() <= 0) {
                 throw new IllegalArgumentException(
-                    "O campo 'Tempo de infusão' do medicamento deve ser maior que zero.");
+                        "O campo 'Tempo de infusão' do medicamento deve ser maior que zero.");
             }
         }
     }
 
     public List<Consulta> listar() {
         return consultaRepository.findAllByOrderByDataHoraDesc();
+    }
+
+    public List<Consulta> listarPorPaciente(Long pacienteId) {
+        return consultaRepository.findByPacienteIdOrderByDataHoraDesc(pacienteId);
     }
 }

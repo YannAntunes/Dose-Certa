@@ -43,6 +43,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/login").permitAll()
                         .requestMatchers("/", "/health/ready", "/health/live").permitAll()
+                        // Swagger / OpenAPI documenta��o p�blica
+                        .requestMatchers("/swagger/**", "/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
 
                         // ── CADASTRO PÚBLICO (sempre cria com status PENDENTE, sem autoatribuição de ADMIN) ──
                         .requestMatchers(HttpMethod.POST, "/usuarios/cadastro-publico").permitAll()
@@ -80,6 +82,11 @@ public class SecurityConfig {
 
                         // ── HISTÓRICO: leitura p/ todos autenticados ──
                         .requestMatchers(HttpMethod.GET, "/historico/**").authenticated()
+                        // ── EXAMES (/api/v1): dados clinicos; RECEPCAO sem acesso ──
+                        .requestMatchers(HttpMethod.POST, "/api/v1/exams/*/analyze").hasAnyAuthority("ADMIN", "MEDICO")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/exams").hasAnyAuthority("ADMIN", "MEDICO", "ENFERMEIRO")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/**").hasAnyAuthority("ADMIN", "MEDICO", "ENFERMEIRO")
+                        .requestMatchers("/api/v1/**").denyAll()
 
                         // Qualquer outra rota exige autenticação
                         .anyRequest().authenticated()

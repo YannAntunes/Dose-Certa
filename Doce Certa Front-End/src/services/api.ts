@@ -217,6 +217,15 @@ export const pacienteService = {
     return makeRequest<Paciente[]>('/pacientes');
   },
 
+  buscarPorId: async (id: number): Promise<Paciente> => {
+    return makeRequest<Paciente>(`/pacientes/${id}`);
+  },
+
+  buscar: async (termo: string): Promise<Paciente[]> => {
+    const q = encodeURIComponent(termo.trim());
+    return makeRequest<Paciente[]>(`/pacientes/search?q=${q}`);
+  },
+
   criar: async (paciente: Omit<Paciente, 'id'>, idempotencyKey?: string): Promise<Paciente> => {
     return makeRequest<Paciente>('/pacientes', {
       method: 'POST',
@@ -445,6 +454,22 @@ export const historicoService = {
       resultado: `${Number(c.resultado).toFixed(2)} ${c.unidade}`,
       observacoes: c.observacoes,
       _syncStatus: 'SINCRONIZADO',
+    }));
+  },
+
+  listarPorPaciente: async (pacienteId: number): Promise<Historico[]> => {
+    const raw: any[] = await makeRequest<any[]>(`/historico/paciente/${pacienteId}`);
+    return raw.map(c => ({
+      id: c.id,
+      data: c.dataHora,
+      pacienteId: c.pacienteId,
+      paciente: c.paciente,
+      medicamentoId: c.medicamentoId,
+      profissional: c.profissional,
+      tipoProfissional: c.tipoProfissional,
+      medicamento: c.medicamento,
+      resultado: `${Number(c.resultado).toFixed(2)} ${c.unidade}`,
+      observacoes: c.observacoes,
     }));
   },
 };

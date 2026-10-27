@@ -132,4 +132,21 @@ public class PacienteService {
     public List<Paciente> listarTodos() {
         return repository.findAll();
     }
+
+    public Paciente buscarPorId(Long id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Paciente não encontrado com ID: " + id));
+    }
+
+    public List<Paciente> buscarPorTermo(String termo) {
+        if (termo == null || termo.isBlank()) {
+            return listarTodos();
+        }
+        String t = termo.trim();
+        String digitos = t.replaceAll("[^0-9]", "");
+        if (!digitos.isBlank() && digitos.length() >= 3) {
+            return repository.findByNomeContainingIgnoreCaseOrCpfContaining(t, digitos);
+        }
+        return repository.findByNomeContainingIgnoreCaseOrCpfContaining(t, t);
+    }
 }

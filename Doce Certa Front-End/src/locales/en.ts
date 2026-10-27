@@ -7,6 +7,7 @@ export const en = {
   'menu.medicamentos': 'Medications',
   'menu.consulta': 'Consultation / Calculation',
   'menu.historico': 'History',
+  'menu.exames': 'Exam Analysis',
   'menu.usuarios': 'Users',
   'menu.logout': 'Logout',
 

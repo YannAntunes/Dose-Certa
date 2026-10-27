@@ -28,6 +28,19 @@ public class PacienteController {
                 .toList();
     }
 
+    @GetMapping("/search")
+    public List<PacienteDTO> buscar(@RequestParam(required = false, defaultValue = "") String q) {
+        return service.buscarPorTermo(q)
+                .stream()
+                .map(PacienteDTO::new)
+                .toList();
+    }
+
+    @GetMapping("/{id}")
+    public PacienteDTO buscarPorId(@PathVariable Long id) {
+        return new PacienteDTO(service.buscarPorId(id));
+    }
+
     @PostMapping
     public ResponseEntity<PacienteDTO> criar(@RequestBody PacienteRequestDTO request) {
         return ResponseEntity

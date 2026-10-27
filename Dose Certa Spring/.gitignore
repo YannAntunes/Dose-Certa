@@ -48,3 +48,6 @@ application-dev.properties
 
 # Build
 target/
+
+### Armazenamento local de exames (dados de saude) ###
+data/

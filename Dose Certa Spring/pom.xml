@@ -95,6 +95,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Extracao de texto de PDFs (modulo de exames) -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.2</version>
+        </dependency>
+
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>

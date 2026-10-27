@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+﻿import { ReactNode } from 'react';
 import { 
   Users, 
   Stethoscope, 
@@ -11,7 +11,8 @@ import {
   UserCog,
   Sun,
   Moon,
-  Globe
+  Globe,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -50,6 +51,7 @@ export default function Dashboard({
     { id: 'medicamentos', label: t('menu.medicamentos'), icon: Pill, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
     { id: 'consulta', label: t('menu.consulta'), icon: Calculator, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
     { id: 'historico', label: t('menu.historico'), icon: Clock, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
+    { id: 'exames', label: t('menu.exames'), icon: FileSpreadsheet, roles: ['ADMIN', 'MEDICO', 'ENFERMEIRO', 'Administrador', 'Médico', 'Enfermeiro'] },
     { id: 'usuarios', label: t('menu.usuarios'), icon: UserCog, roles: ['ADMIN', 'Administrador'] },
   ];
 

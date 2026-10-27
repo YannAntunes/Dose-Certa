@@ -10,6 +10,7 @@ import Medicamentos from './components/Medicamentos';
 import Consulta from './components/Consulta';
 import Historico from './components/Historico';
 import Usuarios from './components/Usuarios';
+import ExamAnalysisPage from './components/exames/ExamAnalysisPage';
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner';
 import {
@@ -817,13 +818,20 @@ function App() {
         return (
           <Historico
             historico={historico}
+            pacientes={pacientes}
             onReabrirConsulta={(item) => {
               setConsultaInicial(item);
+              setCurrentPage('consulta');
+            }}
+            onNovoAtendimento={(paciente) => {
+              setConsultaInicial({ pacienteId: paciente.id, paciente: paciente.nome } as any);
               setCurrentPage('consulta');
             }}
             onRefresh={handleSyncNow}
           />
         );
+      case 'exames':
+        return <ExamAnalysisPage pacientes={pacientes} />;
       case 'usuarios':
         return (
           <Usuarios

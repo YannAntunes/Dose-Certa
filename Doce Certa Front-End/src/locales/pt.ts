@@ -7,6 +7,7 @@ export const pt = {
   'menu.medicamentos': 'Medicamentos',
   'menu.consulta': 'Consulta / Cálculo',
   'menu.historico': 'Histórico',
+  'menu.exames': 'Análise de Exames',
   'menu.usuarios': 'Usuários',
   'menu.logout': 'Sair',
 
